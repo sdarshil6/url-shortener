@@ -1,5 +1,6 @@
 import secrets
 from sqlalchemy.orm import Session
+
 import auth
 import models
 import schemas
@@ -49,7 +50,11 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> models.
 
     secret_key = secrets.token_urlsafe(8)
     db_url = models.URL(
-        target_url=url.target_url, key=key, secret_key=secret_key, owner_id=owner_id
+        target_url=url.target_url,
+        key=key,
+        secret_key=secret_key,
+        owner_id=owner_id,
+        expires_at=url.expires_at
     )
     db.add(db_url)
     db.commit()

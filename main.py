@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from typing import List
-
+from datetime import datetime  # <-- NEW IMPORT
 import auth
 import models
 import schemas
@@ -122,6 +122,10 @@ def forward_to_target_url(
 ):
     db_url = crud.get_db_url_by_key(db=db, url_key=url_key)
     if db_url:
+        if db_url.expires_at and datetime.utcnow() > db_url.expires_at:
+            crud.deactivate_db_url_by_secret_key(db, db_url.secret_key)
+            raise HTTPException(status_code=404, detail="URL not found")
+
         crud.update_db_clicks(db=db, db_url=db_url)
         return RedirectResponse(db_url.target_url)
     else:

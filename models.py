@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -23,6 +23,6 @@ class URL(Base):
     target_url = Column(String, index=True)
     is_active = Column(Boolean, default=True)
     clicks = Column(Integer, default=0)
+    expires_at = Column(DateTime, nullable=True, default=None)
     owner_id = Column(Integer, ForeignKey("users.id"))
-
     owner = relationship("User", back_populates="urls")

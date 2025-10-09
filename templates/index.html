@@ -154,6 +154,8 @@
         <form id="url-form">
           <input type="url" id="target_url" name="target_url" placeholder="Enter a long URL to shorten" required />
           <input type="text" id="custom_key" name="custom_key" placeholder="Optional: Enter a custom name" />
+          <label for="expires_at" style="display: block; text-align: left; margin-bottom: 4px; font-size: 14px; color: #606770">Optional: Expiration Date & Time</label>
+          <input type="datetime-local" id="expires_at" name="expires_at" />
           <button type="submit">Shorten</button>
         </form>
         <div id="result" style="display: none"></div>
@@ -271,8 +273,16 @@
           } else {
             urls.forEach((url) => {
               const shortUrl = `${window.location.protocol}//${window.location.host}/${url.url}`;
+
+              // NEW: Format expiration date
+              let expirationInfo = 'Expires: Never';
+              if (url.expires_at) {
+                const expiryDate = new Date(url.expires_at);
+                expirationInfo = `Expires: ${expiryDate.toLocaleString()}`;
+              }
+
               const listItem = document.createElement('li');
-              listItem.innerHTML = `<strong>${shortUrl}</strong><br>` + `<small>Clicks: ${url.clicks} | Target: ${url.target_url.substring(0, 40)}...</small>`;
+              listItem.innerHTML = `<strong>${shortUrl}</strong><br>` + `<small>Clicks: ${url.clicks} | ${expirationInfo}</small><br>` + `<small>Target: ${url.target_url.substring(0, 40)}...</small>`;
               linksList.appendChild(listItem);
             });
           }
@@ -291,15 +301,17 @@
         const formData = new FormData(urlForm);
         const targetUrl = formData.get('target_url');
         const customKey = formData.get('custom_key');
+        const expiresAt = formData.get('expires_at'); // <-- NEW: Get expiration date
 
         const data = { target_url: targetUrl };
         if (customKey) data.custom_key = customKey;
+        if (expiresAt) data.expires_at = expiresAt; // <-- NEW: Add to request if it exists
 
         const response = await fetch('/url', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`, // <-- IMPORTANT: Sending the token
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(data),
         });
@@ -309,8 +321,7 @@
           const result = await response.json();
           urlResultDiv.className = 'success';
           const shortUrl = `${window.location.protocol}//${window.location.host}/${result.url}`;
-          const adminUrl = `${window.location.protocol}//${window.location.host}/admin/${result.admin_url}`;
-          urlResultDiv.innerHTML = `<strong>Success!</strong><br><br>` + `Short URL: <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>` + `Admin URL: (Use API docs to manage)`;
+          urlResultDiv.innerHTML = `<strong>Success!</strong> Your new short URL is:<br>` + `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
           urlForm.reset();
           fetchUserLinks(); // Refresh the list of links
         } else {
