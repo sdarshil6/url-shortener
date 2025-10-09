@@ -11,8 +11,9 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
         margin: 0;
+        padding: 20px 0;
       }
       .container {
         background-color: #ffffff;
@@ -22,19 +23,19 @@
         width: 100%;
         max-width: 500px;
         text-align: center;
+        box-sizing: border-box;
       }
       h1 {
         color: #1c1e21;
         margin-bottom: 24px;
       }
-      input[type='url'],
-      input[type='text'] {
+      input {
         width: 100%;
         padding: 12px;
         margin-bottom: 16px;
         border: 1px solid #dddfe2;
         border-radius: 6px;
-        box-sizing: border-box; /* Important */
+        box-sizing: border-box;
       }
       button {
         width: 100%;
@@ -46,11 +47,13 @@
         font-size: 16px;
         font-weight: bold;
         cursor: pointer;
+        margin-top: 8px;
       }
       button:hover {
         background-color: #166fe5;
       }
-      #result {
+      #result,
+      #auth-result {
         margin-top: 24px;
         padding: 16px;
         border-radius: 6px;
@@ -69,58 +72,278 @@
         color: #1877f2;
         text-decoration: none;
       }
+      .auth-toggle {
+        margin-top: 16px;
+      }
+      .auth-toggle a {
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .user-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        background-color: #f0f2f5;
+        padding: 10px;
+        border-radius: 6px;
+      }
+      #logout-button {
+        width: auto;
+        padding: 8px 16px;
+        font-size: 14px;
+        background-color: #e4e6eb;
+        color: #1c1e21;
+      }
+      #logout-button:hover {
+        background-color: #d8dadf;
+      }
+      #user-links {
+        margin-top: 24px;
+        text-align: left;
+      }
+      #user-links h2 {
+        margin-top: 0;
+      }
+      #user-links ul {
+        list-style: none;
+        padding: 0;
+      }
+      #user-links li {
+        background-color: #f7f7f7;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      #user-links small {
+        color: #606770;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>URL Shortener</h1>
-      <form id="url-form">
-        <input type="url" id="target_url" name="target_url" placeholder="Enter a long URL to shorten" required />
-        <input type="text" id="custom_key" name="custom_key" placeholder="Optional: Enter a custom name" />
-        <button type="submit">Shorten</button>
-      </form>
-      <div id="result" style="display: none"></div>
+      <div id="auth-container">
+        <div id="login-view">
+          <h1>Login</h1>
+          <form id="login-form">
+            <input type="text" name="username" placeholder="Username" required />
+            <input type="password" name="password" placeholder="Password" required />
+            <button type="submit">Login</button>
+          </form>
+          <div class="auth-toggle">Don't have an account? <a id="show-register">Register here</a></div>
+        </div>
+        <div id="register-view" style="display: none">
+          <h1>Register</h1>
+          <form id="register-form">
+            <input type="text" name="username" placeholder="Username" required />
+            <input type="password" name="password" placeholder="Password" required />
+            <button type="submit">Register</button>
+          </form>
+          <div class="auth-toggle">Already have an account? <a id="show-login">Login here</a></div>
+        </div>
+        <div id="auth-result" style="display: none"></div>
+      </div>
+
+      <div id="app-container" style="display: none">
+        <div class="user-info">
+          <span id="welcome-message"></span>
+          <button id="logout-button">Logout</button>
+        </div>
+        <h1>URL Shortener</h1>
+        <form id="url-form">
+          <input type="url" id="target_url" name="target_url" placeholder="Enter a long URL to shorten" required />
+          <input type="text" id="custom_key" name="custom_key" placeholder="Optional: Enter a custom name" />
+          <button type="submit">Shorten</button>
+        </form>
+        <div id="result" style="display: none"></div>
+        <div id="user-links">
+          <h2>Your Links</h2>
+          <ul id="links-list"></ul>
+        </div>
+      </div>
     </div>
 
     <script>
-      const form = document.getElementById('url-form');
-      const resultDiv = document.getElementById('result');
+      // --- DOM Elements ---
+      const authContainer = document.getElementById('auth-container');
+      const appContainer = document.getElementById('app-container');
+      const loginView = document.getElementById('login-view');
+      const registerView = document.getElementById('register-view');
+      const loginForm = document.getElementById('login-form');
+      const registerForm = document.getElementById('register-form');
+      const urlForm = document.getElementById('url-form');
+      const showRegisterLink = document.getElementById('show-register');
+      const showLoginLink = document.getElementById('show-login');
+      const authResultDiv = document.getElementById('auth-result');
+      const urlResultDiv = document.getElementById('result');
+      const welcomeMessage = document.getElementById('welcome-message');
+      const logoutButton = document.getElementById('logout-button');
+      const linksList = document.getElementById('links-list');
 
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault(); // Prevent page reload
+      // --- Token Management ---
+      const saveToken = (token) => localStorage.setItem('accessToken', token);
+      const getToken = () => localStorage.getItem('accessToken');
+      const removeToken = () => localStorage.removeItem('accessToken');
 
-        const formData = new FormData(form);
+      // --- UI State Management ---
+      const showLoginView = () => {
+        authContainer.style.display = 'block';
+        appContainer.style.display = 'none';
+      };
+
+      const showAppView = () => {
+        authContainer.style.display = 'none';
+        appContainer.style.display = 'block';
+        const token = getToken();
+        const username = token ? JSON.parse(atob(token.split('.')[1])).sub : 'User';
+        welcomeMessage.textContent = `Welcome, ${username}!`;
+        fetchUserLinks();
+      };
+
+      // --- API Calls ---
+      const handleRegister = async (event) => {
+        event.preventDefault();
+        const formData = new FormData(registerForm);
+        const data = Object.fromEntries(formData.entries());
+
+        const response = await fetch('/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        authResultDiv.style.display = 'block';
+        if (response.ok) {
+          authResultDiv.className = 'success';
+          authResultDiv.innerHTML = '<strong>Success!</strong> You can now log in.';
+          registerForm.reset();
+          loginView.style.display = 'block';
+          registerView.style.display = 'none';
+        } else {
+          const error = await response.json();
+          authResultDiv.className = 'error';
+          authResultDiv.innerHTML = `<strong>Error:</strong> ${error.detail}`;
+        }
+      };
+
+      const handleLogin = async (event) => {
+        event.preventDefault();
+        const formData = new FormData(loginForm);
+
+        const response = await fetch('/token', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          saveToken(result.access_token);
+          showAppView();
+          loginForm.reset();
+          authResultDiv.style.display = 'none';
+        } else {
+          const error = await response.json();
+          authResultDiv.style.display = 'block';
+          authResultDiv.className = 'error';
+          authResultDiv.innerHTML = `<strong>Error:</strong> ${error.detail}`;
+        }
+      };
+
+      const handleLogout = () => {
+        removeToken();
+        showLoginView();
+      };
+
+      const fetchUserLinks = async () => {
+        const token = getToken();
+        if (!token) return;
+
+        const response = await fetch('/me/urls', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const urls = await response.json();
+          linksList.innerHTML = ''; // Clear previous list
+          if (urls.length === 0) {
+            linksList.innerHTML = "<li>You haven't created any links yet.</li>";
+          } else {
+            urls.forEach((url) => {
+              const shortUrl = `${window.location.protocol}//${window.location.host}/${url.url}`;
+              const listItem = document.createElement('li');
+              listItem.innerHTML = `<strong>${shortUrl}</strong><br>` + `<small>Clicks: ${url.clicks} | Target: ${url.target_url.substring(0, 40)}...</small>`;
+              linksList.appendChild(listItem);
+            });
+          }
+        }
+      };
+
+      const handleShortenUrl = async (event) => {
+        event.preventDefault();
+        const token = getToken();
+        if (!token) {
+          urlResultDiv.className = 'error';
+          urlResultDiv.innerHTML = '<strong>Error:</strong> You must be logged in.';
+          return;
+        }
+
+        const formData = new FormData(urlForm);
         const targetUrl = formData.get('target_url');
         const customKey = formData.get('custom_key');
 
-        const data = {
-          target_url: targetUrl,
-        };
-        if (customKey) {
-          data.custom_key = customKey;
-        }
+        const data = { target_url: targetUrl };
+        if (customKey) data.custom_key = customKey;
 
         const response = await fetch('/url', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // <-- IMPORTANT: Sending the token
           },
           body: JSON.stringify(data),
         });
 
-        resultDiv.style.display = 'block';
-
+        urlResultDiv.style.display = 'block';
         if (response.ok) {
           const result = await response.json();
-          resultDiv.className = 'success';
-          const shortUrl = `${window.location.href}${result.url}`;
-          const adminUrl = `${window.location.href}admin/${result.admin_url}`;
-          resultDiv.innerHTML =
-            `<strong>Success!</strong><br><br>` + `Short URL: <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>` + `Admin URL: <a href="${adminUrl}" target="_blank">${adminUrl}</a>`;
+          urlResultDiv.className = 'success';
+          const shortUrl = `${window.location.protocol}//${window.location.host}/${result.url}`;
+          const adminUrl = `${window.location.protocol}//${window.location.host}/admin/${result.admin_url}`;
+          urlResultDiv.innerHTML = `<strong>Success!</strong><br><br>` + `Short URL: <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>` + `Admin URL: (Use API docs to manage)`;
+          urlForm.reset();
+          fetchUserLinks(); // Refresh the list of links
         } else {
           const error = await response.json();
-          resultDiv.className = 'error';
-          resultDiv.innerHTML = `<strong>Error:</strong> ${error.detail}`;
+          urlResultDiv.className = 'error';
+          urlResultDiv.innerHTML = `<strong>Error:</strong> ${error.detail}`;
+        }
+      };
+
+      // --- Event Listeners & Initialization ---
+      showRegisterLink.addEventListener('click', () => {
+        loginView.style.display = 'none';
+        registerView.style.display = 'block';
+        authResultDiv.style.display = 'none';
+      });
+
+      showLoginLink.addEventListener('click', () => {
+        registerView.style.display = 'none';
+        loginView.style.display = 'block';
+        authResultDiv.style.display = 'none';
+      });
+
+      registerForm.addEventListener('submit', handleRegister);
+      loginForm.addEventListener('submit', handleLogin);
+      logoutButton.addEventListener('click', handleLogout);
+      urlForm.addEventListener('submit', handleShortenUrl);
+
+      // Initial check on page load
+      document.addEventListener('DOMContentLoaded', () => {
+        if (getToken()) {
+          showAppView();
+        } else {
+          showLoginView();
         }
       });
     </script>

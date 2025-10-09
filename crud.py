@@ -1,7 +1,22 @@
 import secrets
 from sqlalchemy.orm import Session
+import auth
 import models
 import schemas
+
+
+def get_user_by_username(db: Session, username: str) -> models.User:
+    return db.query(models.User).filter(models.User.username == username).first()
+
+
+def create_user(db: Session, user: schemas.UserCreate):
+    hashed_password = auth.get_password_hash(user.password)
+    db_user = models.User(username=user.username,
+                          hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 
 def get_db_url_by_key(db: Session, url_key: str) -> models.URL:
@@ -20,7 +35,11 @@ def get_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL:
     )
 
 
-def create_db_url(db: Session, url: schemas.URLCreate) -> models.URL:
+def get_user_urls(db: Session, owner_id: int):
+    return db.query(models.URL).filter(models.URL.owner_id == owner_id).all()
+
+
+def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> models.URL:
     if url.custom_key:
         key = url.custom_key
         if get_db_url_by_key(db, key):
@@ -30,7 +49,7 @@ def create_db_url(db: Session, url: schemas.URLCreate) -> models.URL:
 
     secret_key = secrets.token_urlsafe(8)
     db_url = models.URL(
-        target_url=url.target_url, key=key, secret_key=secret_key
+        target_url=url.target_url, key=key, secret_key=secret_key, owner_id=owner_id
     )
     db.add(db_url)
     db.commit()
