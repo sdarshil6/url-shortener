@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from database import Base
 
@@ -25,4 +26,16 @@ class URL(Base):
     clicks = Column(Integer, default=0)
     expires_at = Column(DateTime, nullable=True, default=None)
     owner_id = Column(Integer, ForeignKey("users.id"))
+
     owner = relationship("User", back_populates="urls")
+    clicks_info = relationship("Click", back_populates="url")
+
+
+class Click(Base):
+    __tablename__ = "clicks"
+
+    id = Column(Integer, primary_key=True)
+    url_id = Column(Integer, ForeignKey("urls.id"))
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    url = relationship("URL", back_populates="clicks_info")

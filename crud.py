@@ -62,8 +62,13 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> models.
     return db_url
 
 
-def update_db_clicks(db: Session, db_url: schemas.URL) -> models.URL:
+def update_db_clicks(db: Session, db_url: models.URL) -> models.URL:
+
     db_url.clicks += 1
+
+    new_click = models.Click(url_id=db_url.id)
+    db.add(new_click)
+
     db.commit()
     db.refresh(db_url)
     return db_url
@@ -75,4 +80,11 @@ def deactivate_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL:
         db_url.is_active = False
         db.commit()
         db.refresh(db_url)
+    return db_url
+
+
+def update_db_url(db: Session, db_url: models.URL, new_target_url: str) -> models.URL:
+    db_url.target_url = new_target_url
+    db.commit()
+    db.refresh(db_url)
     return db_url

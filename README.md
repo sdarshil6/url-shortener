@@ -1,18 +1,19 @@
-# 🚀 FastAPI URL Shortener
+# 🚀 Shortify: A FastAPI URL Shortener
 
-A full-stack URL shortening service built with FastAPI and vanilla JavaScript. This application allows registered users to create, manage, and track short, memorable links from long URLs. The project is designed to be a secure, multi-user service that is simple, efficient, and easy to deploy.
+A full-stack URL shortening service built with FastAPI and vanilla JavaScript. This application allows registered users to create, manage, and analyze short, memorable links from long URLs through a modern and interactive dashboard. The project is designed to be a secure, multi-user service that is simple, efficient, and easy to deploy.
 
 ---
 
 ## ✨ Key Features
 
 - **User Accounts**: A complete authentication system where users can register, log in, and manage their own collection of links.
+- **Detailed Analytics Dashboard**: View a dashboard of all your links with total click counts and a detailed, toggleable breakdown of click timestamps.
+- **Edit Link Destination**: Easily update the target URL of an existing short link without changing the short link itself.
+- **QR Code Generation**: Automatically generates a scannable QR code for every created link, accessible from the dashboard.
 - **Link Expiration**: Set an optional expiration date and time for any short link, after which it will automatically deactivate.
-- **Custom Short Links**: Users can choose their own custom, memorable names for their short links.
-- **Click Tracking**: Automatically counts how many times a short link is visited.
-- **Secure Link Management**: All link management is protected, ensuring users can only view stats for and deactivate the links they own.
-- **Simple Web Interface**: A clean, single-page UI that dynamically changes based on login status, allowing for account management and link creation.
-- **Automatic API Docs**: Interactive API documentation powered by FastAPI and Swagger UI.
+- **API Rate Limiting**: Protects against abuse by limiting the number of requests for sensitive endpoints like login and registration.
+- **Modern Interactive UI**: A clean, two-column single-page application that dynamically changes based on login status and includes engaging features like a one-click "copy to clipboard" button.
+- **Automatic API Docs**: Interactive API documentation powered by FastAPI and Swagger UI for easy backend testing.
 
 ---
 
@@ -21,6 +22,8 @@ A full-stack URL shortening service built with FastAPI and vanilla JavaScript. T
 - **Backend**: 🐍 Python 3 with [FastAPI](https://fastapi.tiangolo.com/)
 - **Database**: 💾 [SQLAlchemy](https://www.sqlalchemy.org/) ORM with a [SQLite](https://www.sqlite.org/index.html) database for local development.
 - **Authentication**: 🔐 [Passlib](https://passlib.readthedocs.io/en/stable/) for password hashing and [python-jose](https://github.com/mpdavis/python-jose) for JSON Web Tokens (JWT).
+- **Rate Limiting**: ⏱️ [SlowAPI](https://github.com/laurents/slowapi) to protect against brute-force and denial-of-service attacks.
+- **QR Codes**: 🖼️ [qrcode](https://github.com/lincolnloop/python-qrcode) for on-the-fly QR code generation.
 - **Data Validation**: ✅ [Pydantic](https://docs.pydantic.dev/latest/)
 - **Frontend**: 🌐 HTML5, 🎨 CSS3, 💻 Vanilla JavaScript (with `fetch` API)
 - **Templating**: 📄 [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/) for serving the HTML page.
@@ -44,6 +47,7 @@ url-shortener/
 ├── models.py              # SQLAlchemy database models (the table schema)
 ├── requirements.txt       # A list of all Python dependencies
 ├── schemas.py             # Pydantic models for data validation and shaping
+├── utils.py               # Helper utility functions (e.g., QR code generation)
 └── url_shortener.db       # The SQLite database file (created on first run)
 ```
 
@@ -93,7 +97,7 @@ To run this project locally, follow these steps:
 
 ## 🔌 API Endpoints
 
-The API is divided into public and protected endpoints. Protected endpoints require a valid JWT access token in the `Authorization` header (`Bearer <TOKEN>`).
+The API is divided into public and protected endpoints. Protected endpoints require a valid JWT access token. Some endpoints are also rate-limited.
 
 ### Authentication Endpoints (Public)
 
@@ -101,35 +105,13 @@ The API is divided into public and protected endpoints. Protected endpoints requ
 
 - **Endpoint**: `POST /users`
 - **Description**: Creates a new user account.
-- **Request Body**:
-  ```json
-  {
-    "username": "newuser",
-    "password": "a-strong-password"
-  }
-  ```
-- **Success Response (200 OK)**:
-  ```json
-  {
-    "username": "newuser",
-    "id": 1
-  }
-  ```
-- **Error Response**: `400 Bad Request` if the username is already registered.
+- **Rate Limit**: 10 requests per hour.
 
 #### 2. Login for Access Token
 
 - **Endpoint**: `POST /token`
 - **Description**: Authenticates a user and returns a JWT access token.
-- **Request Body**: `application/x-www-form-urlencoded` with `username` and `password` fields.
-- **Success Response (200 OK)**:
-  ```json
-  {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "token_type": "bearer"
-  }
-  ```
-- **Error Response**: `401 Unauthorized` for incorrect credentials.
+- **Rate Limit**: 5 requests per minute.
 
 ---
 
@@ -141,6 +123,7 @@ The API is divided into public and protected endpoints. Protected endpoints requ
 
 - **Endpoint**: `POST /url`
 - **Description**: Creates a new short URL associated with the logged-in user.
+- **Rate Limit**: 30 requests per minute.
 - **Request Body**:
   ```json
   {
@@ -149,43 +132,53 @@ The API is divided into public and protected endpoints. Protected endpoints requ
     "expires_at": "2025-12-31T23:59:59"
   }
   ```
-- **Success Response (200 OK)**:
-  ```json
-  {
-    "target_url": "[https://www.google.com](https://www.google.com)",
-    "is_active": true,
-    "clicks": 0,
-    "owner_id": 1,
-    "expires_at": "2025-12-31T23:59:59",
-    "url": "my-google-link",
-    "admin_url": "some_secret_key"
-  }
-  ```
 
 #### 2. Get My URLs
 
 - **Endpoint**: `GET /me/urls`
 - **Description**: Retrieves a list of all short URLs created by the logged-in user.
-- **Success Response (200 OK)**: A JSON array of URL Info objects.
+- **Success Response (200 OK)**: A JSON array of URL Info objects, including the QR code and detailed click timestamps.
 
 #### 3. Get URL Statistics
 
 - **Endpoint**: `GET /admin/{secret_key}`
 - **Description**: Retrieves statistics for a specific short URL. Only the owner of the link can access this.
-- **Success Response (200 OK)**: A single URL Info object.
-- **Error Response**: `404 Not Found` if the link doesn't exist or the user is not the owner.
+- **Success Response (200 OK)**: A single URL Info object with a `qr_code` and detailed `clicks_info`.
+  ```json
+  {
+    "target_url": "[https://www.google.com](https://www.google.com)",
+    "is_active": true,
+    "clicks": 1,
+    "owner_id": 1,
+    "expires_at": null,
+    "url": "my-link",
+    "admin_url": "some_secret_key",
+    "qr_code": "data:image/png;base64,iVBORw0KGgo...",
+    "clicks_info": [
+      {
+        "id": 1,
+        "url_id": 1,
+        "timestamp": "2025-10-10T19:30:00.123456"
+      }
+    ]
+  }
+  ```
 
-#### 4. Deactivate a URL
+#### 4. Edit a Short URL
+
+- **Endpoint**: `PATCH /admin/{secret_key}`
+- **Description**: Updates the `target_url` of an existing short link. Only the owner can perform this action.
+- **Request Body**:
+  ```json
+  {
+    "target_url": "[https://new-destination.com](https://new-destination.com)"
+  }
+  ```
+
+#### 5. Deactivate a URL
 
 - **Endpoint**: `DELETE /admin/{secret_key}`
 - **Description**: Deactivates a short URL, preventing it from redirecting. Only the owner can perform this action.
-- **Success Response (200 OK)**:
-  ```json
-  {
-    "detail": "Successfully deactivated short URL for '[https://www.google.com](https://www.google.com)'"
-  }
-  ```
-- **Error Response**: `404 Not Found` if the link doesn't exist or the user is not the owner.
 
 ---
 
@@ -194,7 +187,7 @@ The API is divided into public and protected endpoints. Protected endpoints requ
 #### 1. Redirect to Target URL
 
 - **Endpoint**: `GET /{url_key}`
-- **Description**: Redirects to the original `target_url` and increments the click counter.
+- **Description**: Redirects to the original `target_url` and records a detailed click with a timestamp.
 - **Success Response**: `307 Temporary Redirect` to the target URL.
 - **Error Response**: `404 Not Found` if the `url_key` does not exist, is inactive, or has expired.
 
@@ -213,14 +206,6 @@ To deploy this application to a production environment like Render or Heroku:
     gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
     ```
     This command starts Gunicorn with 4 worker processes to handle requests.
-
----
-
-## 🚀 Future Improvements
-
-- **Analytics Dashboard**: Create a dashboard for users to view more detailed analytics (e.g., clicks over time, referrers).
-- **QR Code Generation**: Automatically generate a QR code for each created short link.
-- **Edit Destination URL**: Allow users to edit the `target_url` of an existing short link.
 
 ---
 
