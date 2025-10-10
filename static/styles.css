@@ -1,0 +1,367 @@
+:root {
+    --background: #f4f7fa;
+    --surface: #ffffff;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border: #e5e7eb;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 40px 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1,
+h2 {
+    color: var(--text-primary);
+}
+
+/* --- AUTH VIEW --- */
+#auth-container {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 40px;
+    background-color: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--primary);
+    color: var(--surface);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+}
+
+.auth-toggle {
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+.auth-toggle a {
+    cursor: pointer;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+/* --- MAIN APP VIEW (HORIZONTAL LAYOUT) --- */
+#app-container {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.create-column,
+.dashboard-column {
+    background: var(--surface);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-secondary {
+    background-color: var(--border);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background-color: #d1d5db;
+}
+
+#logout-button {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* --- DASHBOARD HEADER --- */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#refresh-analytics-button {
+    width: auto;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+#refresh-analytics-button svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+}
+
+#refresh-analytics-button.loading svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- LINK CARDS --- */
+#links-list {
+    list-style: none;
+    padding: 0;
+}
+
+.link-card {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    transition: box-shadow 0.2s;
+}
+
+.link-card:hover {
+    box-shadow: var(--shadow);
+}
+
+.link-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.short-url a {
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--primary);
+}
+
+.copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
+}
+
+.copy-btn:hover {
+    color: var(--primary);
+}
+
+.copy-btn svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+}
+
+.target-url {
+    font-size: 14px;
+    color: var(--text-secondary);
+    word-wrap: break-word;
+    margin: 8px 0;
+}
+
+.link-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.link-stats {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.link-actions {
+    display: flex;
+    align-items: center;
+}
+
+.link-actions button {
+    width: auto;
+    font-size: 13px;
+    padding: 6px 12px;
+    margin: 0;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+/* --- QR CODE SPECIFIC STYLES --- */
+.qr-code-container {
+    position: relative;
+    display: inline-block;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.qr-code-img {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    object-fit: contain;
+}
+
+/* --- Analytics Details --- */
+.analytics-details {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background-color: var(--background);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.analytics-details ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.analytics-details li {
+    margin-bottom: 4px;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* --- MODAL STYLES --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--surface);
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.qr-modal-content {
+    text-align: center;
+    max-width: 300px;
+}
+
+.qr-modal-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#result,
+#auth-result {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* --- ANIMATIONS --- */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
