@@ -627,6 +627,8 @@ footer {
 .contact-info p {
     font-size: 0.875rem;
     margin-bottom: 1rem;
+    max-width: 280px;
+    line-height: 1.5;
 }
 
 .contact-info ul {
@@ -642,6 +644,7 @@ footer {
     display: flex;
     align-items: center;
     font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .contact-info svg {
@@ -649,6 +652,7 @@ footer {
     height: 1rem;
     margin-right: 0.75rem;
     color: var(--primary);
+    flex-shrink: 0;
 }
 
 .contact-info a {
@@ -659,11 +663,15 @@ footer {
 
 .contact-info a:hover {
     color: var(--primary);
+    text-decoration: underline;
 }
 
 .copyright {
     text-align: right;
     font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    align-self: flex-end;
 }
 
 @media (max-width: 768px) {
