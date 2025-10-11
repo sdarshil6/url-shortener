@@ -7,3 +7,10 @@ __pycache__/
 
 # Database file
 *.db
+
+# Environment variables
+.env
+
+# Log files and directory
+logs/
+*.log

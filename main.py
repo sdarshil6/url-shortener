@@ -1,27 +1,31 @@
-from fastapi.staticfiles import StaticFiles
-from jose import JWTError, jwt
-import validators
-from fastapi import Depends, FastAPI, HTTPException, Request, status, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from typing import List
-from datetime import datetime, timedelta
-import secrets
-
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
-import auth
-import models
-import schemas
-import crud
-import utils
-import email_utils
-from database import SessionLocal, engine
 from config import settings
+from database import SessionLocal, engine
+import email_utils
+import utils
+import crud
+import schemas
+import models
+import auth
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from slowapi import Limiter, _rate_limit_exceeded_handler
+import secrets
+from datetime import datetime, timedelta
+from typing import List
+from sqlalchemy.orm import Session
+from fastapi.templating import Jinja2Templates
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, HTTPException, Request, status, BackgroundTasks
+import validators
+from jose import JWTError, jwt
+from fastapi.staticfiles import StaticFiles
+import logging
+from fastapi.responses import JSONResponse
+from logging_config import setup_logging
+
+setup_logging()
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -29,6 +33,19 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def log_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+
+        logging.error("An unhandled error occurred", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "An internal server error occurred."},
+        )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
