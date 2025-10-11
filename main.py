@@ -1,12 +1,15 @@
+from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
 import validators
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
-from fastapi.staticfiles import StaticFiles
+from datetime import datetime, timedelta
+import secrets
+
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -16,7 +19,9 @@ import models
 import schemas
 import crud
 import utils
+import email_utils
 from database import SessionLocal, engine
+from config import settings
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -26,6 +31,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 
 
@@ -45,29 +51,63 @@ def add_qr_code_to_url_info(db_url: models.URL, request: Request):
     return db_url
 
 
-@app.post("/users", response_model=schemas.User)
-@limiter.limit("10/hour")  # Apply rate limit
-def register_user(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_username(db, username=user.username)
+@app.post("/users", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/hour")
+async def register_user(
+    request: Request,
+    user: schemas.UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
-        raise HTTPException(
-            status_code=400, detail="Username already registered")
-    return crud.create_user(db=db, user=user)
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    otp = str(secrets.randbelow(900000) + 100000)
+    otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    crud.create_user(db=db, user=user, otp=otp, otp_expires_at=otp_expires_at)
+
+    background_tasks.add_task(email_utils.send_otp_email, user.email, otp)
+
+    return {"message": "Registration successful. Please check your email for an OTP to verify your account."}
+
+
+@app.post("/verify-otp")
+def verify_otp(verification_data: schemas.OtpVerification, db: Session = Depends(get_db)):
+    user = crud.get_user_by_email(db, email=verification_data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.otp or user.otp != verification_data.otp:
+        raise HTTPException(status_code=400, detail="Invalid or incorrect OTP")
+    if user.otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP has expired")
+
+    crud.verify_user_otp(db, user=user)
+    return {"message": "Account verified successfully. You can now log in."}
 
 
 @app.post("/token", response_model=schemas.Token)
-@limiter.limit("5/minute")  # Apply rate limit
+@limiter.limit("10/minute")
 def login_for_access_token(
     request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
-    user = crud.get_user_by_username(db, username=form_data.username)
+
+    user = crud.get_user_by_email(db, email=form_data.username)
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = auth.create_access_token(data={"sub": user.username})
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account not verified. Please check your email for an OTP first.",
+        )
+
+    access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -82,7 +122,7 @@ def get_my_urls(
 
 
 @app.post("/url", response_model=schemas.URLInfo)
-@limiter.limit("30/minute")  # Apply rate limit
+@limiter.limit("30/minute")
 def create_url(
     url: schemas.URLCreate,
     request: Request,
@@ -170,3 +210,95 @@ def forward_to_target_url(
         return RedirectResponse(db_url.target_url)
     else:
         raise HTTPException(status_code=404, detail="URL not found")
+
+# --- GOOGLE SSO ENDPOINTS ---
+
+
+@app.post("/forgot-password")
+async def forgot_password(
+    payload: schemas.PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    user = crud.get_user_by_email(db, email=payload.email)
+    if not user:
+
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+    reset_token = auth.create_password_reset_token(data={"sub": user.email})
+    crud.set_password_reset_token(db, user=user, token=reset_token)
+
+    reset_link = f"{settings.APP_URL}#/reset-password?token={reset_token}"
+
+    background_tasks.add_task(
+        email_utils.send_password_reset_email, user.email, reset_link
+    )
+
+    return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+
+@app.post("/reset-password")
+def reset_password(payload: schemas.PasswordReset, db: Session = Depends(get_db)):
+    try:
+        token_payload = jwt.decode(
+            payload.token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        if token_payload.get("type") != "reset":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        email = token_payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = crud.get_user_by_reset_token(db, token=payload.token)
+    if not user or user.email != email or user.reset_token_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    crud.update_user_password(db, user=user, new_password=payload.new_password)
+    return {"message": "Password has been reset successfully."}
+
+
+@app.get("/auth/google/login")
+async def google_login():
+    """Generate login url and redirect."""
+    return await auth.google_sso.get_login_redirect()
+
+
+@app.get("/auth/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    """Process login response from Google and return user token."""
+    try:
+
+        async with auth.google_sso as sso:
+            sso_user = await sso.verify_and_process(request)
+
+        if not sso_user or not sso_user.email:
+            raise HTTPException(
+                status_code=400, detail="Could not retrieve user info from Google")
+
+        user = crud.get_user_by_email(db, email=sso_user.email)
+
+        if not user:
+            new_user_data = schemas.UserCreate(
+                email=sso_user.email,
+                password=secrets.token_hex(16)
+            )
+            user = crud.create_user(db, user=new_user_data, is_verified=True)
+
+        access_token = auth.create_access_token(data={"sub": user.email})
+
+        return HTMLResponse(f"""
+            <html>
+                <head>
+                    <title>Authentication Successful</title>
+                </head>
+                <body>
+                    <h1>Authentication successful! Redirecting...</h1>
+                    <script>
+                        window.localStorage.setItem('accessToken', '{access_token}');
+                        window.location.href = '/';
+                    </script>
+                </body>
+            </html>
+        """)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to authenticate with Google: {e}")

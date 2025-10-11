@@ -3,70 +3,135 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shortify - FastAPI URL Shortener</title>
+    <meta
+      name="description"
+      content="Shortify is a powerful, free URL shortener with a custom link dashboard, detailed analytics, and QR code generation. Simplify your links and amplify your reach."
+    />
+    <title>Shortify - Your Modern URL Shortener</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}" />
   </head>
   <body>
-    <div class="container">
-      <div id="auth-container" class="fade-in">
-        <div id="login-view">
+    <div id="app-root">
+      <div id="auth-container">
+        <div id="login-view" class="fade-in">
           <h1>Welcome Back</h1>
+          <p class="subtitle">Log in to manage your links.</p>
           <form id="login-form">
-            <input type="text" name="username" placeholder="Username" required />
+            <input type="email" name="username" placeholder="Email Address" required />
             <input type="password" name="password" placeholder="Password" required />
             <button type="submit">Login</button>
           </form>
+          <div class="divider">OR</div>
+          <a href="/auth/google/login" class="google-btn">
+            <svg viewBox="0 0 48 48" width="24px" height="24px">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v9.12h13.01c-.59 3.01-2.26 5.48-4.91 7.28l7.98 6.19c4.65-4.3 7.32-10.49 7.32-17.92z"></path>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"></path>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.98-6.19c-2.16 1.45-4.92 2.3-7.91 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+              <path fill="none" d="M0 0h48v48H0z"></path>
+            </svg>
+            <span>Sign In with Google</span>
+          </a>
+          <div class="auth-toggle"><a id="show-forgot-password">Forgot Password?</a></div>
           <div class="auth-toggle">Don't have an account? <a id="show-register">Register here</a></div>
         </div>
-        <div id="register-view" style="display: none">
-          <h1>Create Account</h1>
+        <div id="register-view" style="display: none" class="fade-in">
+          <h1>Create Your Account</h1>
+          <p class="subtitle">It's free and always will be.</p>
           <form id="register-form">
-            <input type="text" name="username" placeholder="Username" required />
-            <input type="password" name="password" placeholder="Password" required />
-            <button type="submit">Register</button>
+            <input type="email" name="email" placeholder="Email Address" required />
+            <input type="password" name="password" placeholder="Create a Password" required />
+            <button type="submit">Create Account</button>
           </form>
+          <div class="divider">OR</div>
+          <a href="/auth/google/login" class="google-btn">
+            <svg viewBox="0 0 48 48" width="24px" height="24px">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v9.12h13.01c-.59 3.01-2.26 5.48-4.91 7.28l7.98 6.19c4.65-4.3 7.32-10.49 7.32-17.92z"></path>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"></path>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.98-6.19c-2.16 1.45-4.92 2.3-7.91 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+              <path fill="none" d="M0 0h48v48H0z"></path>
+            </svg>
+            <span>Sign Up with Google</span>
+          </a>
           <div class="auth-toggle">Already have an account? <a id="show-login">Login here</a></div>
+        </div>
+        <div id="otp-view" style="display: none" class="fade-in">
+          <h1>One Last Step...</h1>
+          <p class="subtitle">We've sent a 6-digit code to <strong id="otp-email-display"></strong>. Please enter it below.</p>
+          <form id="otp-form">
+            <input type="text" name="otp" placeholder="6-Digit OTP" required maxlength="6" />
+            <button type="submit">Verify Account</button>
+          </form>
+          <div class="auth-toggle"><a id="otp-back-to-login">Back to Login</a></div>
+        </div>
+        <div id="forgot-password-view" style="display: none" class="fade-in">
+          <h1>Reset Password</h1>
+          <p class="subtitle">Enter your email and we'll send you a reset link.</p>
+          <form id="forgot-password-form">
+            <input type="email" name="email" placeholder="Your Email Address" required />
+            <button type="submit">Send Reset Link</button>
+          </form>
+          <div class="auth-toggle"><a id="forgot-back-to-login">Back to Login</a></div>
+        </div>
+        <div id="reset-password-view" style="display: none" class="fade-in">
+          <h1>Set a New Password</h1>
+          <p class="subtitle">Create a new, strong password for your account.</p>
+          <form id="reset-password-form">
+            <input type="password" id="new_password" name="new_password" placeholder="New Password" required />
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password" required />
+            <button type="submit">Reset Password</button>
+          </form>
         </div>
         <div id="auth-result" style="display: none"></div>
       </div>
 
       <div id="app-container" style="display: none" class="fade-in">
-        <div class="create-column">
+        <aside class="sidebar">
+          <h1 class="logo">Shortify</h1>
+          <p class="tagline">Simplify Your Links, Amplify Your Reach.</p>
+          <div class="create-column">
+            <h2>Create a New Link</h2>
+            <form id="url-form">
+              <label for="target_url">Destination URL</label>
+              <input type="url" id="target_url" name="target_url" placeholder="https://your-long-url.com" required />
+              <label for="custom_key">Custom Back-Half (Optional)</label>
+              <input type="text" id="custom_key" name="custom_key" placeholder="e.g., my-summer-sale" />
+              <label for="expires_at">Expiration (Optional)</label>
+              <input type="datetime-local" id="expires_at" name="expires_at" />
+              <button type="submit">Shorten Link</button>
+            </form>
+            <div id="result" style="display: none"></div>
+          </div>
           <div class="user-info">
             <span id="welcome-message"></span>
             <button id="logout-button" class="btn-secondary">Logout</button>
           </div>
-          <h2>Create a New Link</h2>
-          <form id="url-form">
-            <input type="url" id="target_url" name="target_url" placeholder="Enter a long URL" required />
-            <input type="text" id="custom_key" name="custom_key" placeholder="Optional custom back-half" />
-            <label for="expires_at" style="display: block; text-align: left; margin: -10px 0 4px 2px; font-size: 14px; color: var(--text-secondary)">Expiration (Optional)</label>
-            <input type="datetime-local" id="expires_at" name="expires_at" />
-            <button type="submit">Shorten Link</button>
-          </form>
-          <div id="result" style="display: none"></div>
-        </div>
-        <div class="dashboard-column">
+        </aside>
+        <main class="dashboard-column">
           <div class="dashboard-header">
-            <h2>Dashboard</h2>
+            <h2>Your Links</h2>
             <button id="refresh-analytics-button" class="btn-secondary">
               <span>Refresh</span>
             </button>
           </div>
           <ul id="links-list"></ul>
-        </div>
+        </main>
       </div>
     </div>
 
     <div id="edit-modal" class="modal">
-      <div class="modal-content fade-in">
-        <span class="close-edit-btn">&times;</span>
+      <div class="modal-content">
+        <span class="close-edit-btn close-btn">&times;</span>
         <h2>Edit Target URL</h2>
         <form id="edit-form">
           <input type="hidden" id="edit-secret-key" />
+          <label for="edit-target-url">New Destination URL</label>
           <input type="url" id="edit-target-url" required />
           <button type="submit">Save Changes</button>
         </form>
@@ -74,9 +139,10 @@
     </div>
 
     <div id="qr-modal" class="modal">
-      <div class="modal-content qr-modal-content fade-in">
-        <span class="close-qr-btn">&times;</span>
+      <div class="modal-content qr-modal-content">
+        <span class="close-qr-btn close-btn">&times;</span>
         <img id="qr-modal-img" src="" alt="QR Code" />
+        <p>Scan the code to visit the link.</p>
       </div>
     </div>
 

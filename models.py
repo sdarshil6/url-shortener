@@ -9,8 +9,13 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    is_verified = Column(Boolean, default=False)
+    otp = Column(String, nullable=True, default=None)
+    otp_expires_at = Column(DateTime, nullable=True, default=None)
+    reset_token = Column(String, nullable=True, default=None, index=True)
+    reset_token_expires_at = Column(DateTime, nullable=True, default=None)
 
     urls = relationship("URL", back_populates="owner")
 

@@ -1,23 +1,44 @@
 import secrets
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 
 import auth
 import models
 import schemas
 
 
-def get_user_by_username(db: Session, username: str) -> models.User:
-    return db.query(models.User).filter(models.User.username == username).first()
+def get_user_by_email(db: Session, email: str) -> models.User:
+    return db.query(models.User).filter(models.User.email == email).first()
 
 
-def create_user(db: Session, user: schemas.UserCreate):
+def create_user(
+    db: Session,
+    user: schemas.UserCreate,
+    otp: str = None,
+    otp_expires_at: datetime = None,
+    is_verified: bool = False
+):
     hashed_password = auth.get_password_hash(user.password)
-    db_user = models.User(username=user.username,
-                          hashed_password=hashed_password)
+    db_user = models.User(
+        email=user.email,
+        hashed_password=hashed_password,
+        otp=otp,
+        otp_expires_at=otp_expires_at,
+        is_verified=is_verified
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def verify_user_otp(db: Session, user: models.User):
+    user.is_verified = True
+    user.otp = None
+    user.otp_expires_at = None
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def get_db_url_by_key(db: Session, url_key: str) -> models.URL:
@@ -63,12 +84,9 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> models.
 
 
 def update_db_clicks(db: Session, db_url: models.URL) -> models.URL:
-
     db_url.clicks += 1
-
     new_click = models.Click(url_id=db_url.id)
     db.add(new_click)
-
     db.commit()
     db.refresh(db_url)
     return db_url
@@ -88,3 +106,24 @@ def update_db_url(db: Session, db_url: models.URL, new_target_url: str) -> model
     db.commit()
     db.refresh(db_url)
     return db_url
+
+
+def set_password_reset_token(db: Session, user: models.User, token: str):
+    user.reset_token = token
+    user.reset_token_expires_at = datetime.utcnow() + timedelta(minutes=15)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_user_by_reset_token(db: Session, token: str) -> models.User:
+    return db.query(models.User).filter(models.User.reset_token == token).first()
+
+
+def update_user_password(db: Session, user: models.User, new_password: str):
+    user.hashed_password = auth.get_password_hash(new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    db.commit()
+    db.refresh(user)
+    return user

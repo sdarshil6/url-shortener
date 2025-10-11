@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+
+
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import List
 
@@ -42,17 +44,22 @@ class URLInfo(URL):
     clicks_info: List[Click] = []
 
 
+class OtpVerification(BaseModel):
+    email: EmailStr
+    otp: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 
 class TokenData(BaseModel):
-    username: str | None = None
+    email: str | None = None
 
 
 class UserBase(BaseModel):
-    username: str
+    email: str
 
 
 class UserCreate(UserBase):
@@ -61,6 +68,16 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: int
+    is_verified: bool
 
     class Config:
         from_attributes = True
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str
