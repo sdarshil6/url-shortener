@@ -10,8 +10,9 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    hashed_password = Column(String, nullable=True)
     is_verified = Column(Boolean, default=False)
+    auth_provider = Column(String, default='email')
     otp = Column(String, nullable=True, default=None)
     otp_expires_at = Column(DateTime, nullable=True, default=None)
     reset_token = Column(String, nullable=True, default=None, index=True)

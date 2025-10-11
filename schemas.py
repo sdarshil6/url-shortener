@@ -63,7 +63,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str | None = None
 
 
 class User(UserBase):

@@ -16,15 +16,18 @@ def create_user(
     user: schemas.UserCreate,
     otp: str = None,
     otp_expires_at: datetime = None,
-    is_verified: bool = False
+    is_verified: bool = False,
+    auth_provider: str = 'email'
 ):
-    hashed_password = auth.get_password_hash(user.password)
+    hashed_password = auth.get_password_hash(
+        user.password) if user.password else None
     db_user = models.User(
         email=user.email,
         hashed_password=hashed_password,
         otp=otp,
         otp_expires_at=otp_expires_at,
-        is_verified=is_verified
+        is_verified=is_verified,
+        auth_provider=auth_provider
     )
     db.add(db_user)
     db.commit()

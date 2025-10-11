@@ -63,6 +63,23 @@ async def register_user(
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    password = user.password
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 8 characters long.")
+    if not any(char.isdigit() for char in password):
+        raise HTTPException(
+            status_code=400, detail="Password must contain at least one number.")
+    if not any(char.isupper() for char in password):
+        raise HTTPException(
+            status_code=400, detail="Password must contain at least one uppercase letter.")
+    if not any(char.islower() for char in password):
+        raise HTTPException(
+            status_code=400, detail="Password must contain at least one lowercase letter.")
+    special_characters = "!@#$%^&*"
+    if not any(char in special_characters for char in password):
+        raise HTTPException(
+            status_code=400, detail=f"Password must contain at least one special character ({special_characters}).")
     otp = str(secrets.randbelow(900000) + 100000)
     otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
 
@@ -94,6 +111,13 @@ def login_for_access_token(
 ):
 
     user = crud.get_user_by_email(db, email=form_data.username)
+
+    if user and user.auth_provider != 'email':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account was created using a different method. Please use 'Sign in with Google'."
+        )
+
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -211,8 +235,6 @@ def forward_to_target_url(
     else:
         raise HTTPException(status_code=404, detail="URL not found")
 
-# --- GOOGLE SSO ENDPOINTS ---
-
 
 @app.post("/forgot-password")
 async def forgot_password(
@@ -224,6 +246,12 @@ async def forgot_password(
     if not user:
 
         return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+    if (user & user.auth_provider != 'email'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account was created using a different method. Please use 'Sign in with Google.'"
+        )
 
     reset_token = auth.create_password_reset_token(data={"sub": user.email})
     crud.set_password_reset_token(db, user=user, token=reset_token)
@@ -276,12 +304,17 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         user = crud.get_user_by_email(db, email=sso_user.email)
 
-        if not user:
+        if user:
+            if user.auth_provider != 'google':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"An account with email {user.email} already exists. Please log in with your password."
+                )
+        else:
             new_user_data = schemas.UserCreate(
-                email=sso_user.email,
-                password=secrets.token_hex(16)
-            )
-            user = crud.create_user(db, user=new_user_data, is_verified=True)
+                email=sso_user.email, password=None)
+            user = crud.create_user(
+                db, user=new_user_data, is_verified=True, auth_provider='google')
 
         access_token = auth.create_access_token(data={"sub": user.email})
 
