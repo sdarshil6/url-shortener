@@ -145,7 +145,15 @@
         <p>Scan the code to visit the link.</p>
       </div>
     </div>
-
+    <div id="analytics-modal" class="modal">
+      <div class="modal-content analytics-modal-content">
+        <span class="close-analytics-btn close-btn">&times;</span>
+        <h2>Link Analytics</h2>
+        <div id="analytics-content">
+          <div class="loader"></div>
+        </div>
+      </div>
+    </div>
     <script src="{{ url_for('static', path='/main.js') }}"></script>
     <footer>
       <div class="footer-content">

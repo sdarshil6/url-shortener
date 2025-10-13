@@ -1,7 +1,7 @@
 import secrets
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-
+from collections import Counter
 import auth
 import models
 import schemas
@@ -86,9 +86,30 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> models.
     return db_url
 
 
-def update_db_clicks(db: Session, db_url: models.URL) -> models.URL:
+def record_click(
+    db: Session,
+    db_url: models.URL,
+    ip_address: str,
+    user_agent: str,
+    referrer: str,
+    geo_data: dict,
+    device_data: dict
+):
+
     db_url.clicks += 1
-    new_click = models.Click(url_id=db_url.id)
+
+    new_click = models.Click(
+        url_id=db_url.id,
+        ip_address=ip_address,
+        user_agent_raw=user_agent,
+        referrer=referrer,
+        country=geo_data.get("country"),
+        region=geo_data.get("region"),
+        city=geo_data.get("city"),
+        browser=device_data.get("browser"),
+        os=device_data.get("os"),
+        device=device_data.get("device"),
+    )
     db.add(new_click)
     db.commit()
     db.refresh(db_url)
@@ -130,3 +151,37 @@ def update_user_password(db: Session, user: models.User, new_password: str):
     db.commit()
     db.refresh(user)
     return user
+
+
+def get_analytics_for_url(db_url: models.URL) -> schemas.AnalyticsData:
+    raw_clicks = db_url.clicks_info
+
+    unique_ips = {click.ip_address for click in raw_clicks}
+    unique_clicks = len(unique_ips)
+
+    referrer_counts = Counter(
+        click.referrer or "Direct" for click in raw_clicks)
+    country_counts = Counter(
+        click.country or "Unknown" for click in raw_clicks)
+    browser_counts = Counter(
+        click.browser or "Unknown" for click in raw_clicks)
+    os_counts = Counter(click.os or "Unknown" for click in raw_clicks)
+
+    timeline_counts = Counter(click.timestamp.strftime(
+        '%Y-%m-%d') for click in raw_clicks)
+
+    analytics = schemas.AnalyticsData(
+        total_clicks=db_url.clicks,
+        unique_clicks=unique_clicks,
+        top_referrers=[schemas.CountStat(
+            item=item, count=count) for item, count in referrer_counts.most_common(5)],
+        clicks_by_country=[schemas.CountStat(
+            item=item, count=count) for item, count in country_counts.most_common(5)],
+        clicks_by_browser=[schemas.CountStat(
+            item=item, count=count) for item, count in browser_counts.most_common(5)],
+        clicks_by_os=[schemas.CountStat(item=item, count=count)
+                      for item, count in os_counts.most_common(5)],
+        click_timeline=sorted([schemas.TimelineStat(date=date, count=count)
+                              for date, count in timeline_counts.items()], key=lambda x: x.date)
+    )
+    return analytics

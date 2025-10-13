@@ -1,6 +1,7 @@
 from config import settings
 from database import SessionLocal, engine
 import email_utils
+import enrichment
 import utils
 import crud
 import schemas
@@ -246,8 +247,14 @@ def forward_to_target_url(
         if db_url.expires_at and datetime.utcnow() > db_url.expires_at:
             crud.deactivate_db_url_by_secret_key(db, db_url.secret_key)
             raise HTTPException(status_code=404, detail="URL not found")
-
-        crud.update_db_clicks(db=db, db_url=db_url)
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "Unknown")
+        referrer = request.headers.get("referer", "Direct")
+        geo_data = enrichment.get_geolocation_for_ip(ip_address)
+        device_data = enrichment.parse_user_agent(user_agent)
+        crud.record_click(
+            db, db_url, ip_address, user_agent, referrer, geo_data, device_data
+        )
         return RedirectResponse(db_url.target_url)
     else:
         raise HTTPException(status_code=404, detail="URL not found")
@@ -352,3 +359,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to authenticate with Google: {e}")
+
+
+@app.get("/admin/{secret_key}/analytics", response_model=schemas.AnalyticsData)
+def get_url_analytics(
+    secret_key: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_url = crud.get_db_url_by_secret_key(db, secret_key=secret_key)
+    if not db_url or db_url.owner_id != current_user.id:
+        raise HTTPException(status_code=404, detail="URL not found")
+
+    return crud.get_analytics_for_url(db_url)

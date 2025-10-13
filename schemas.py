@@ -2,13 +2,40 @@
 
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import List
+from typing import List, Optional
+
+
+class CountStat(BaseModel):
+    item: str
+    count: int
+
+
+class TimelineStat(BaseModel):
+    date: str
+    count: int
+
+
+class AnalyticsData(BaseModel):
+    total_clicks: int
+    unique_clicks: int
+    top_referrers: List[CountStat]
+    clicks_by_country: List[CountStat]
+    clicks_by_browser: List[CountStat]
+    clicks_by_os: List[CountStat]
+    click_timeline: List[TimelineStat]
 
 
 class Click(BaseModel):
     id: int
     url_id: int
     timestamp: datetime
+    ip_address: str
+    country: Optional[str] = None
+    city: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    device: Optional[str] = None
+    referrer: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -41,7 +68,6 @@ class URLInfo(URL):
     url: str
     admin_url: str
     qr_code: str | None = None
-    clicks_info: List[Click] = []
 
 
 class OtpVerification(BaseModel):

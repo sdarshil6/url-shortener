@@ -36,7 +36,9 @@ const qrModal = document.getElementById('qr-modal');
 const qrModalImg = document.getElementById('qr-modal-img');
 const closeQrBtn = document.querySelector('.close-qr-btn');
 const refreshAnalyticsButton = document.getElementById('refresh-analytics-button');
-
+const analyticsModal = document.getElementById('analytics-modal');
+const closeAnalyticsBtn = document.querySelector('.close-analytics-btn');
+const analyticsContent = document.getElementById('analytics-content');
 let registrationEmail = '';
 let passwordResetToken = '';
 
@@ -91,6 +93,79 @@ const openQrModal = (qrSrc) => {
 const closeQrModal = () => {
   qrModal.style.display = 'none';
   qrModal.classList.remove('show');
+};
+
+const openAnalyticsModal = async (secretKey) => {
+  analyticsModal.style.display = 'block';
+  analyticsModal.classList.add('show');
+  analyticsContent.innerHTML = `<div class="loader"></div>`; // Show loader
+
+  const token = getToken();
+  const response = await fetch(`/admin/${secretKey}/analytics`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    renderAnalyticsData(data);
+  } else {
+    analyticsContent.innerHTML = `<p class="error">Could not load analytics.</p>`;
+  }
+};
+const closeAnalyticsModal = () => {
+  analyticsModal.style.display = 'none';
+  analyticsModal.classList.remove('show');
+};
+
+const renderAnalyticsData = (data) => {
+  const createStatList = (items) => {
+    if (items.length === 0) return '<li>No data yet.</li>';
+    return items
+      .map(
+        (item) => `
+            <li>
+                <span class="item-name">${item.item}</span>
+                <span class="item-count">${item.count}</span>
+            </li>
+        `
+      )
+      .join('');
+  };
+
+  analyticsContent.innerHTML = `
+        <div class="analytics-summary">
+            <div class="summary-stat">
+                <span class="stat-value">${data.total_clicks}</span>
+                <span class="stat-label">Total Clicks</span>
+            </div>
+            <div class="summary-stat">
+                <span class="stat-value">${data.unique_clicks}</span>
+                <span class="stat-label">Unique Clicks</span>
+            </div>
+        </div>
+        <div class="analytics-grid">
+            <div class="analytics-section">
+                <h3>Top Referrers</h3>
+                <ul class="analytics-list">${createStatList(data.top_referrers)}</ul>
+            </div>
+            <div class="analytics-section">
+                <h3>Clicks by Country</h3>
+                <ul class="analytics-list">${createStatList(data.clicks_by_country)}</ul>
+            </div>
+            <div class="analytics-section">
+                <h3>Top Browsers</h3>
+                <ul class="analytics-list">${createStatList(data.clicks_by_browser)}</ul>
+            </div>
+            <div class="analytics-section">
+                <h3>Clicks by OS</h3>
+                <ul class="analytics-list">${createStatList(data.clicks_by_os)}</ul>
+            </div>
+        </div>
+         <div class="analytics-section">
+            <h3>Click Timeline (By Day)</h3>
+            <ul class="analytics-list">${createStatList(data.click_timeline.map((d) => ({ item: d.date, count: d.count })))}</ul>
+        </div>
+    `;
 };
 
 const handleRegister = async (event) => {
@@ -372,10 +447,11 @@ editForm.addEventListener('submit', handleEditUrl);
 
 closeEditBtn.addEventListener('click', closeEditModal);
 closeQrBtn.addEventListener('click', closeQrModal);
-
+closeAnalyticsBtn.addEventListener('click', closeAnalyticsModal);
 window.addEventListener('click', (event) => {
   if (event.target == editModal) closeEditModal();
   if (event.target == qrModal) closeQrModal();
+  if (event.target == analyticsModal) closeAnalyticsModal();
 });
 
 refreshAnalyticsButton.addEventListener('click', fetchUserLinks);
@@ -390,7 +466,8 @@ linksList.addEventListener('click', (event) => {
     openEditModal(editBtn.dataset.secretKey, editBtn.dataset.targetUrl);
   }
   if (analyticsBtn) {
-    alert('A full analytics page with charts and graphs is a great next feature to build!');
+    const secretKey = analyticsBtn.closest('.link-card').querySelector('.edit-btn').dataset.secretKey;
+    openAnalyticsModal(secretKey);
   }
   if (copyBtn) {
     const urlToCopy = copyBtn.dataset.url;
