@@ -435,15 +435,23 @@ button:hover {
 
 .modal-content {
     background-color: var(--surface);
-    margin: 10% auto;
     padding: 2rem;
     border-radius: var(--radius);
     width: 90%;
     max-width: 500px;
-    position: relative;
     box-shadow: var(--shadow-lg);
-    animation: slideIn 0.3s ease-out;
+
+    /* New: Robust Centering Technique */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    max-height: 90vh;
+    overflow-y: auto;
 }
+
+
 
 .qr-modal-content {
     text-align: center;
@@ -670,7 +678,7 @@ footer {
     text-align: right;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: var(--primary-hover);
     align-self: flex-end;
 }
 
