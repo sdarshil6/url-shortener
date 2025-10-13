@@ -16,9 +16,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     APP_URL: str
     ALLOW_INSECURE_HTTP: bool
+    CLICK_DEDUPLICATION_WINDOW_SECONDS: int
 
-    class Config:
-        env_file = ".env"
+
+class Config:
+    env_file = ".env"
 
 
 settings = Settings()

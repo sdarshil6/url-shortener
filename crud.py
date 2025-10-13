@@ -96,7 +96,10 @@ def record_click(
     device_data: dict
 ):
 
-    db_url.clicks += 1
+    db.query(models.URL).filter(models.URL.id == db_url.id).update(
+        {models.URL.clicks: models.URL.clicks + 1},
+        synchronize_session=False
+    )
 
     new_click = models.Click(
         url_id=db_url.id,

@@ -1,4 +1,5 @@
 from config import settings
+import config
 from database import SessionLocal, engine
 import email_utils
 import enrichment
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi import Depends, FastAPI, HTTPException, Request, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks
 import validators
 from jose import JWTError, jwt
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +35,11 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+RECENT_CLICKS_CACHE = {}
+# Ignore clicks within a 2-second window
+DEDUPLICATION_TIMEDELTA = timedelta(
+    seconds=config.CLICK_DEDUPLICATION_WINDOW_SECONDS)
 
 
 @app.middleware("http")
@@ -247,14 +253,38 @@ def forward_to_target_url(
         if db_url.expires_at and datetime.utcnow() > db_url.expires_at:
             crud.deactivate_db_url_by_secret_key(db, db_url.secret_key)
             raise HTTPException(status_code=404, detail="URL not found")
+
+        current_time = datetime.utcnow()
+        cache_key = f"{request.client.host}:{url_key}"
+
+        # Clean up old entries from the cache to prevent memory leaks
+        if len(RECENT_CLICKS_CACHE) > 10000:
+            cutoff_time = current_time - DEDUPLICATION_TIMEDELTA
+            for key, timestamp in list(RECENT_CLICKS_CACHE.items()):
+                if timestamp < cutoff_time:
+                    del RECENT_CLICKS_CACHE[key]
+
+        # Check if this is a duplicate click
+        if cache_key in RECENT_CLICKS_CACHE:
+            last_click_time = RECENT_CLICKS_CACHE[cache_key]
+            if current_time - last_click_time < DEDUPLICATION_TIMEDELTA:
+                # If it's a duplicate, just redirect and do nothing else
+                return RedirectResponse(db_url.target_url)
+
+        # If it's not a duplicate, record the time and proceed
+        RECENT_CLICKS_CACHE[cache_key] = current_time
+
         ip_address = request.client.host
         user_agent = request.headers.get("user-agent", "Unknown")
         referrer = request.headers.get("referer", "Direct")
+
         geo_data = enrichment.get_geolocation_for_ip(ip_address)
         device_data = enrichment.parse_user_agent(user_agent)
+
         crud.record_click(
             db, db_url, ip_address, user_agent, referrer, geo_data, device_data
         )
+
         return RedirectResponse(db_url.target_url)
     else:
         raise HTTPException(status_code=404, detail="URL not found")
@@ -372,3 +402,8 @@ def get_url_analytics(
         raise HTTPException(status_code=404, detail="URL not found")
 
     return crud.get_analytics_for_url(db_url)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
