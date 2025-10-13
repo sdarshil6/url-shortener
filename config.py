@@ -1,4 +1,10 @@
+import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path=dotenv_path)
 
 
 class Settings(BaseSettings):
@@ -17,10 +23,6 @@ class Settings(BaseSettings):
     APP_URL: str
     ALLOW_INSECURE_HTTP: bool
     CLICK_DEDUPLICATION_WINDOW_SECONDS: int
-
-
-class Config:
-    env_file = ".env"
 
 
 settings = Settings()
