@@ -25,7 +25,8 @@ from fastapi.staticfiles import StaticFiles
 import logging
 from fastapi.responses import JSONResponse
 from logging_config import setup_logging
-
+from app_state import RECENT_CLICKS_CACHE, DEDUPLICATION_TIMEDELTA
+from background_tasks import lifespan
 setup_logging()
 
 
@@ -35,11 +36,6 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-RECENT_CLICKS_CACHE = {}
-# Ignore clicks within a 2-second window
-DEDUPLICATION_TIMEDELTA = timedelta(
-    seconds=config.CLICK_DEDUPLICATION_WINDOW_SECONDS)
 
 
 @app.middleware("http")
@@ -256,13 +252,6 @@ def forward_to_target_url(
 
         current_time = datetime.utcnow()
         cache_key = f"{request.client.host}:{url_key}"
-
-        # Clean up old entries from the cache to prevent memory leaks
-        if len(RECENT_CLICKS_CACHE) > 10000:
-            cutoff_time = current_time - DEDUPLICATION_TIMEDELTA
-            for key, timestamp in list(RECENT_CLICKS_CACHE.items()):
-                if timestamp < cutoff_time:
-                    del RECENT_CLICKS_CACHE[key]
 
         # Check if this is a duplicate click
         if cache_key in RECENT_CLICKS_CACHE:
