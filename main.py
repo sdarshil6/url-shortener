@@ -27,6 +27,7 @@ from fastapi.responses import JSONResponse
 from logging_config import setup_logging
 from app_state import RECENT_CLICKS_CACHE, DEDUPLICATION_TIMEDELTA
 from background_tasks import lifespan
+import razorpay
 setup_logging()
 
 
@@ -396,3 +397,69 @@ def get_url_analytics(
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
+
+razorpay_client = razorpay.Client(
+    auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+)
+
+
+@app.post("/payments/create-subscription", status_code=status.HTTP_201_CREATED)
+def create_subscription(
+    payload: schemas.SubscriptionRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        subscription = razorpay_client.subscription.create({
+            "plan_id": payload.plan_id,
+            "total_count": 12,  # For a 12-cycle (1 year) subscription
+            "quantity": 1,
+            "customer_notify": 0  # We will handle notifications
+        })
+
+        # Save the subscription ID to the user's record
+        crud.update_user_subscription_id(
+            db, current_user.id, sub_id=subscription['id'])
+
+        return {
+            "subscription_id": subscription['id'],
+            "key_id": settings.RAZORPAY_KEY_ID
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating subscription: {str(e)}")
+
+
+@app.post("/payments/webhook")
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+    raw_body = await request.body()
+    try:
+        signature = request.headers.get("x-razorpay-signature")
+        razorpay_client.utility.verify_webhook_signature(
+            raw_body.decode(), signature, settings.RAZORPAY_WEBHOOK_SECRET
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail="Webhook signature verification failed")
+
+    payload = await request.json()
+    event = payload.get("event")
+
+    if event == "invoice.paid":
+        subscription_id = payload.get("payload", {}).get(
+            "invoice", {}).get("entity", {}).get("subscription_id")
+        plan_id = payload.get("payload", {}).get(
+            "invoice", {}).get("entity", {}).get("plan_id")
+
+        if not subscription_id:
+            return Response(status_code=200)
+
+        user = crud.get_user_by_subscription_id(db, sub_id=subscription_id)
+        if user:
+            plan_name = "pro" if plan_id == settings.RAZORPAY_PRO_PLAN_ID else "business"
+            crud.update_user_plan_from_webhook(
+                db, user, plan_name=plan_name, status="active")
+            logging.info(
+                f"Subscription activated for user {user.email}, plan: {plan_name}")
+
+    return Response(status_code=200)

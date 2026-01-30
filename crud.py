@@ -188,3 +188,28 @@ def get_analytics_for_url(db_url: models.URL) -> schemas.AnalyticsData:
                               for date, count in timeline_counts.items()], key=lambda x: x.date)
     )
     return analytics
+
+
+def update_user_subscription_id(db: Session, user_id: int, sub_id: str):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+
+    if user:
+        user.razorpay_subscription_id = sub_id
+        db.commit()
+        db.refresh(user)
+
+    return user
+
+
+def get_user_by_subscription_id(db: Session, sub_id: str) -> models.User:
+    return db.query(models.User).filter(models.User.razorpay_subscription_id == sub_id).first()
+
+
+def update_user_plan_from_webhook(db: Session, user: models.User, plan_name: str, status: str):
+    user.plan_name = plan_name
+    user.subscription_status = status
+    # Set the billing period end to one year from now
+    user.current_period_end = datetime.utcnow() + timedelta(days=365)
+    db.commit()
+    db.refresh(user)
+    return user

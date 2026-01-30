@@ -107,3 +107,7 @@ class PasswordResetRequest(BaseModel):
 class PasswordReset(BaseModel):
     token: str
     new_password: str
+
+
+class SubscriptionRequest(BaseModel):
+    plan_id: str

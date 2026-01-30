@@ -18,6 +18,11 @@ class User(Base):
     reset_token = Column(String, nullable=True, default=None, index=True)
     reset_token_expires_at = Column(DateTime, nullable=True, default=None)
 
+    plan_name = Column(String, default='starter')
+    razorpay_subscription_id = Column(String, nullable=True, unique=True)
+    subscription_status = Column(String, nullable=True)
+    current_period_end = Column(DateTime, nullable=True)
+
     urls = relationship("URL", back_populates="owner")
 
 
@@ -31,6 +36,7 @@ class URL(Base):
     is_active = Column(Boolean, default=True)
     clicks = Column(Integer, default=0)
     expires_at = Column(DateTime, nullable=True, default=None)
+    created_at = Column(DateTime, default=datetime.utcnow)
     owner_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="urls")

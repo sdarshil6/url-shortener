@@ -85,3 +85,8 @@ url-shortener/
 ## 📜 License
 
 This project is licensed under the MIT License.
+
+subscription model
+payment gateway
+database change
+UI change

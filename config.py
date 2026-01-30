@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     APP_URL: str
     ALLOW_INSECURE_HTTP: bool
     CLICK_DEDUPLICATION_WINDOW_SECONDS: int
+    RAZORPAY_KEY_ID: str
+    RAZORPAY_KEY_SECRET: str
+    RAZORPAY_WEBHOOK_SECRET: str
+    RAZORPAY_PRO_PLAN_ID: str
+    RAZORPAY_BUSINESS_PLAN_ID: str
 
 
 settings = Settings()
