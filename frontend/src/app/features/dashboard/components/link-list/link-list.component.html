@@ -5,7 +5,7 @@
       Your Links
     </h2>
     <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
-      <span class="svg-icon" [class.loading]="loading" style="--url: url('assets/icons/refresh-cw.svg'); width: 16px; height: 16px;"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg'); width: 16px; height: 16px;"></span>
       <span>Refresh</span>
     </button>
   </div>
@@ -63,7 +63,7 @@
         type="url"
         formControlName="target_url"
         [required]="true"
-        tooltip="Update the destination URL"
+        tooltip="Destination URL"
       ></app-input>
     </div>
     <app-button
@@ -71,7 +71,7 @@
       label="Save Changes"
       [loading]="editLoading"
       [disabled]="editForm.invalid || editLoading"
-      tooltip="Save your changes"
+      tooltip="Save"
     ></app-button>
   </form>
 </app-modal>

@@ -13,9 +13,8 @@
         <span class="username">{{ username }}</span>
       </div>
       
-      <button class="logout-btn" (click)="logout()" data-tooltip="Logout">
-        <i class="lucide-log-out"></i>
-        <span>Logout</span>
+      <button class="logout-btn" (click)="logout()" data-tooltip="Sign out" aria-label="Sign out">
+        <span class="svg-icon" style="--url: url('assets/icons/logout.svg'); width: 16px; height: 16px;"></span>
       </button>
     </div>
   </div>

@@ -13,11 +13,11 @@ export class LinkService {
   constructor(private http: HttpClient) {}
 
   getUserLinks(): Observable<Link[]> {
-    return this.http.get<Link[]>(`${this.API_URL}/users/urls`);
+    return this.http.get<Link[]>(`${this.API_URL}/me/urls`);
   }
 
   createLink(data: CreateLinkRequest): Observable<Link> {
-    return this.http.post<Link>(`${this.API_URL}/shorten`, data);
+    return this.http.post<Link>(`${this.API_URL}/url`, data);
   }
 
   updateLink(data: UpdateLinkRequest): Observable<{ message: string }> {

@@ -6,8 +6,7 @@
         formControlName="target_url"
         type="url"
         placeholder="https://example.com/very-long-url"
-        iconClass="lucide-globe"
-        [tooltip]="'Enter the URL you want to shorten'"
+        [tooltip]="'Destination URL'"
       ></app-input>
       <div class="error-message" *ngIf="linkForm.get('target_url')?.invalid && linkForm.get('target_url')?.touched">
         <span *ngIf="linkForm.get('target_url')?.errors?.['required']">URL is required</span>
@@ -21,8 +20,7 @@
         formControlName="custom_code"
         type="text"
         placeholder="my-custom-code"
-        iconClass="lucide-edit"
-        [tooltip]="'Create a custom short code (letters, numbers, dashes, underscores)'"
+        [tooltip]="'Custom short code'"
       ></app-input>
       <div class="error-message" *ngIf="linkForm.get('custom_code')?.invalid && linkForm.get('custom_code')?.touched">
         <span *ngIf="linkForm.get('custom_code')?.errors?.['pattern']">Only letters, numbers, dashes and underscores allowed</span>

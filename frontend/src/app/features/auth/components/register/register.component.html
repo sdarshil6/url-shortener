@@ -10,8 +10,7 @@
           formControlName="email"
           type="email"
           placeholder="Email address"
-          icon="mail"
-          [tooltip]="'Enter a valid email address'"
+          [tooltip]="'Email address'"
         ></app-input>
         <div class="error-message" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
           <span *ngIf="registerForm.get('email')?.errors?.['required']">Email is required</span>
@@ -24,8 +23,7 @@
           formControlName="password"
           type="password"
           placeholder="Password"
-          icon="lock"
-          [tooltip]="'Password must be at least 8 characters'"
+          [tooltip]="'Password (min 8 chars)'"
         ></app-input>
         <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
           <span *ngIf="registerForm.get('password')?.errors?.['required']">Password is required</span>

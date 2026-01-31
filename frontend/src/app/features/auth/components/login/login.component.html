@@ -10,9 +10,8 @@
         type="email"
         placeholder="Email Address"
         formControlName="username"
-        icon="mail"
         [required]="true"
-        tooltip="Enter your registered email address"
+        tooltip="Email address"
       ></app-input>
       <div class="error-message" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
         <span *ngIf="loginForm.get('username')?.errors?.['required']">Email is required</span>
@@ -25,9 +24,8 @@
         type="password"
         placeholder="Password"
         formControlName="password"
-        icon="lock"
         [required]="true"
-        tooltip="Enter your password"
+        tooltip="Password"
       ></app-input>
       <div class="error-message" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
         <span *ngIf="loginForm.get('password')?.errors?.['required']">Password is required</span>
@@ -35,7 +33,7 @@
     </div>
 
     <div class="forgot-password-container">
-      <a routerLink="/auth/forgot-password" class="forgot-password-link" title="Reset your password via email">
+      <a routerLink="/auth/forgot-password" class="forgot-password-link" title="Forgot password">
         Forgot Password?
       </a>
     </div>
@@ -54,7 +52,7 @@
 
     <div class="divider"><span>or</span></div>
 
-    <a [href]="googleLoginUrl" class="google-btn" title="Sign in with your Google account">
+    <a [href]="googleLoginUrl" class="google-btn" title="Sign in with Google">
       <img src="google-logo.svg" width="20" height="20" alt="Google" />
       <span>Continue with Google</span>
     </a>
