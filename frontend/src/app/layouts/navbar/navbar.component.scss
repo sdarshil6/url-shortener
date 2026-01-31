@@ -97,7 +97,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem;
     background: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
@@ -106,6 +106,12 @@
     font-size: 0.875rem;
     transition: all 0.2s;
     position: relative;
+
+    .svg-icon {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+    }
 
     i {
       font-size: 1rem;
