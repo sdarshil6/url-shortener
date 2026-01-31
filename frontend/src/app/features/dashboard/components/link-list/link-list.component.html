@@ -1,11 +1,11 @@
 <div class="dashboard-column">
   <div class="dashboard-header">
     <h2 class="dashboard-title">
-      <span class="svg-icon" style="--url: url('assets/icons/grid.svg'); width: 26px; height: 26px;"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/grid.svg'); width: 20px; height: 20px;"></span>
       Your Links
     </h2>
     <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
-      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg'); width: 16px; height: 16px;"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg'); width: 14px; height: 14px;"></span>
       <span>Refresh</span>
     </button>
   </div>
@@ -21,7 +21,7 @@
           <a [href]="getShortUrl(link.url)" target="_blank">{{ getDisplayUrl(link.url) }}</a>
         </div>
         <button class="copy-btn btn-icon" (click)="copyToClipboard(link.url)" title="Copy short link">
-          <span class="svg-icon" style="--url: url('assets/icons/copy.svg'); width: 16px; height: 16px;"></span>
+          <span class="svg-icon" style="--url: url('assets/icons/copy.svg'); width: 14px; height: 14px;"></span>
         </button>
       </div>
       
@@ -37,10 +37,10 @@
             <img [src]="link.qr_code" alt="QR Code" class="qr-code-img" />
           </div>
           <button class="analytics-btn btn-icon" (click)="openAnalytics(link)" title="View Analytics">
-            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg'); width: 16px; height: 16px;"></span>
+            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg'); width: 14px; height: 14px;"></span>
           </button>
           <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link">
-            <span class="svg-icon" style="--url: url('assets/icons/edit.svg'); width: 16px; height: 16px;"></span>
+            <span class="svg-icon" style="--url: url('assets/icons/edit.svg'); width: 14px; height: 14px;"></span>
           </button>
         </div>
       </div>

@@ -63,9 +63,9 @@
     gap: 0.375rem;
 }
 
-.dashboard-title svg {
-    width: 18px;
-    height: 18px;
+.dashboard-title .svg-icon {
+    width: 20px;
+    height: 20px;
     color: var(--primary);
 }
 
@@ -84,7 +84,7 @@
     transition: all 0.2s;
 }
 
-.btn-refresh svg {
+.btn-refresh .svg-icon {
     width: 14px;
     height: 14px;
 }
@@ -93,7 +93,7 @@
     background: rgba(91, 127, 245, 0.15);
 }
 
-.btn-refresh.loading svg {
+.btn-refresh.loading .svg-icon {
     animation: spin 1s linear infinite;
 }
 
@@ -168,7 +168,7 @@
     flex-shrink: 0;
 }
 
-.copy-btn svg {
+.copy-btn .svg-icon {
     width: 14px;
     height: 14px;
     color: var(--primary);
@@ -178,7 +178,7 @@
     background: var(--primary);
 }
 
-.copy-btn:hover svg {
+.copy-btn:hover .svg-icon {
     color: white;
 }
 
@@ -235,7 +235,7 @@
     flex-shrink: 0;
 }
 
-.btn-icon svg {
+.btn-icon .svg-icon {
     width: 14px;
     height: 14px;
     color: var(--text-secondary);
@@ -246,7 +246,7 @@
     border-color: var(--primary);
 }
 
-.btn-icon:hover svg {
+.btn-icon:hover .svg-icon {
     color: var(--primary);
 }
 

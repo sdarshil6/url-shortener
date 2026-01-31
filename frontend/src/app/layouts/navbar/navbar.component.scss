@@ -67,8 +67,10 @@
     border-radius: 8px;
     position: relative;
 
-    i {
+    .svg-icon {
       color: var(--primary);
+      width: 18px;
+      height: 18px;
     }
 
     .username {

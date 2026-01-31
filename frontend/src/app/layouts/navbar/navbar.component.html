@@ -2,19 +2,19 @@
   <div class="navbar-container">
     <div class="navbar-brand">
       <div class="brand-logo">
-        <span class="svg-icon" style="--url: url('assets/icons/link-logo.svg'); width: 32px; height: 32px;"></span>
+        <span class="svg-icon" style="--url: url('assets/icons/link-logo.svg'); width: 20px; height: 20px;"></span>
       </div>
       <h1 class="brand-name">Shortify</h1>
     </div>
 
     <div class="navbar-actions">
       <div class="user-info" [attr.data-tooltip]="'Logged in as ' + username">
-        <i class="lucide-user"></i>
+        <span class="svg-icon" style="--url: url('assets/icons/user.svg'); width: 18px; height: 18px;"></span>
         <span class="username">{{ username }}</span>
       </div>
       
       <button class="logout-btn" (click)="logout()" data-tooltip="Sign out" aria-label="Sign out">
-        <span class="svg-icon" style="--url: url('assets/icons/logout.svg'); width: 16px; height: 16px;"></span>
+        <span class="svg-icon" style="--url: url('assets/icons/logout.svg'); width: 18px; height: 18px;"></span>
       </button>
     </div>
   </div>

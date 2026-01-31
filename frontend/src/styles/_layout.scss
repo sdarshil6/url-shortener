@@ -34,7 +34,7 @@
     justify-content: center;
 }
 
-.logo-icon-app svg {
+.logo-icon-app .svg-icon {
     width: 16px;
     height: 16px;
     color: white;
@@ -73,7 +73,7 @@
     flex-shrink: 0;
 }
 
-.user-avatar svg {
+.user-avatar .svg-icon {
     width: 12px;
     height: 12px;
     color: white;
@@ -103,7 +103,7 @@
     padding: 0;
 }
 
-.logout-btn svg, .btn-logout svg {
+.logout-btn .svg-icon, .btn-logout .svg-icon {
     width: 16px;
     height: 16px;
     color: var(--error);
@@ -114,7 +114,7 @@
     border-color: var(--error);
 }
 
-.logout-btn:hover svg, .btn-logout:hover svg {
+.logout-btn:hover .svg-icon, .btn-logout:hover .svg-icon {
     color: white;
 }
 

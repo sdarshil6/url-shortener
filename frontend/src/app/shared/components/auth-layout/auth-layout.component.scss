@@ -30,7 +30,7 @@
     justify-content: center;
     box-shadow: 0 4px 12px rgba(91, 127, 245, 0.3);
 
-    svg {
+    .svg-icon {
       color: white;
       width: 20px;
       height: 20px;
@@ -106,8 +106,10 @@
     color: var(--primary);
     margin-top: 0.5rem;
 
-    svg {
+    .svg-icon {
       flex-shrink: 0;
+      width: 14px;
+      height: 14px;
     }
 
     span {
@@ -336,7 +338,7 @@
       width: 40px;
       height: 40px;
 
-      svg {
+      .svg-icon {
         width: 24px;
         height: 24px;
       }
