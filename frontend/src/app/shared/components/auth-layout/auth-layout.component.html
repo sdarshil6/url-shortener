@@ -1,0 +1,35 @@
+<div class="auth-page">
+  <div class="layout-container">
+    
+    <!-- Auth Card -->
+    <div class="auth-card">
+      <!-- Icon & Title -->
+      <div class="auth-header">
+        <div class="auth-brand">
+          <div class="brand-logo">
+            <span class="svg-icon" style="--url: url('assets/icons/link-logo.svg'); width: 32px; height: 32px;"></span>
+          </div>
+          <h1 class="brand-name">Shortify</h1>
+        </div>
+        
+        <h2 class="auth-title">{{ title }}</h2>
+        <p class="auth-subtitle">{{ subtitle }}</p>
+        <div class="feature-badge" *ngIf="featureText">
+          <span class="svg-icon" style="--url: url('assets/icons/check.svg'); width: 14px; height: 14px;"></span>
+          <span>{{ featureText }}</span>
+        </div>
+      </div>
+
+      <!-- Content Projection -->
+      <div class="auth-content">
+        <ng-content></ng-content>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="auth-footer-text">
+      <p>© 2026 Shortify. Enterprise URL Management Platform.</p>
+      <p class="footer-tagline">Trusted by businesses worldwide for secure link management</p>
+    </div>
+  </div>
+</div>

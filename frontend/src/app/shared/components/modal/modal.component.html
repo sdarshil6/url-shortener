@@ -1,0 +1,15 @@
+<div class="modal" [class.show]="isOpen" (click)="onBackdropClick($event)">
+  <div class="modal-content" [class]="iconClass ? iconClass + '-content' : ''">
+    <span class="close-btn" (click)="close()" title="Close">&times;</span>
+    <div class="modal-header" *ngIf="title">
+      <div class="modal-icon" [class]="iconClass" *ngIf="icon || iconClass">
+        <span *ngIf="icon" [innerHTML]="iconSvg"></span>
+        <ng-content select="[icon]"></ng-content>
+      </div>
+      <h2>{{ title }}</h2>
+    </div>
+    <div class="modal-body">
+      <ng-content></ng-content>
+    </div>
+  </div>
+</div>

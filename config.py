@@ -8,6 +8,7 @@ if os.path.exists(dotenv_path):
 
 
 class Settings(BaseSettings):
+    DATABASE_URL: str
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: str

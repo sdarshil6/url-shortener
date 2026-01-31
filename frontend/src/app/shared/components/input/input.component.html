@@ -1,0 +1,18 @@
+<div class="input-group">
+  <span *ngIf="icon" class="input-icon" [innerHTML]="iconSvg"></span>
+  <input 
+    [type]="type"
+    [placeholder]="placeholder"
+    [value]="value"
+    [required]="required"
+    [disabled]="disabled"
+    [attr.autocomplete]="autocompleteValue"
+    [attr.readonly]="isReadOnly ? true : null"
+    (focus)="onFocus()"
+    [attr.title]="tooltip"
+    [attr.maxlength]="maxlength"
+    [class.otp-input]="type === 'otp'"
+    (input)="onInputChange($event)"
+    (blur)="onBlur()"
+  />
+</div>

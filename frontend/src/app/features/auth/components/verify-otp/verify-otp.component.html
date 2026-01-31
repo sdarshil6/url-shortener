@@ -1,0 +1,50 @@
+<app-auth-layout 
+  title="Verify Your Email" 
+  [subtitle]="'We\'ve sent a 6-digit code to ' + email"
+  icon="mail-check"
+  featureText="Enhanced security with email verification">
+  
+  <form [formGroup]="otpForm" (ngSubmit)="onSubmit()" class="auth-form" autocomplete="off">
+      <div class="form-group">
+        <app-input
+          formControlName="otp"
+          type="text"
+          placeholder="Enter 6-digit OTP"
+          icon="shield-check"
+          [tooltip]="'Enter the verification code from your email'"
+        ></app-input>
+        <div class="error-message" *ngIf="otpForm.get('otp')?.invalid && otpForm.get('otp')?.touched">
+          <span *ngIf="otpForm.get('otp')?.errors?.['required']">OTP is required</span>
+          <span *ngIf="otpForm.get('otp')?.errors?.['pattern']">OTP must be 6 digits</span>
+        </div>
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+
+      <div class="success-message" *ngIf="successMessage">
+        {{ successMessage }}
+      </div>
+
+      <app-button
+        type="submit"
+        [label]="'Verify Email'"
+        [disabled]="!otpForm.valid"
+        [loading]="isLoading"
+        customClass="auth-btn"
+      ></app-button>
+
+      <div class="resend-section">
+        <p>Didn't receive the code?</p>
+        <button type="button" class="link-btn" (click)="resendOTP()" [disabled]="isResending">
+          {{ isResending ? 'Sending...' : 'Resend OTP' }}
+        </button>
+      </div>
+  </form>
+
+  <div class="auth-footer">
+    <p><a routerLink="/auth/login">Back to login</a></p>
+  </div>
+
+</app-auth-layout>

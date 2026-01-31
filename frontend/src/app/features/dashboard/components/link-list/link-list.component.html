@@ -1,0 +1,115 @@
+<div class="dashboard-column">
+  <div class="dashboard-header">
+    <h2 class="dashboard-title">
+      <span class="svg-icon" style="--url: url('assets/icons/grid.svg'); width: 26px; height: 26px;"></span>
+      Your Links
+    </h2>
+    <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
+      <span class="svg-icon" [class.loading]="loading" style="--url: url('assets/icons/refresh-cw.svg'); width: 16px; height: 16px;"></span>
+      <span>Refresh</span>
+    </button>
+  </div>
+  
+  <ul class="links-list">
+    <p *ngIf="links.length === 0 && !loading" style="color: var(--text-secondary);">
+      Your dashboard is empty. Create a link on the left to get started!
+    </p>
+    
+    <li *ngFor="let link of links" class="link-card fade-in">
+      <div class="link-header">
+        <div class="short-url">
+          <a [href]="getShortUrl(link.url)" target="_blank">{{ getDisplayUrl(link.url) }}</a>
+        </div>
+        <button class="copy-btn btn-icon" (click)="copyToClipboard(link.url)" title="Copy short link">
+          <span class="svg-icon" style="--url: url('assets/icons/copy.svg'); width: 16px; height: 16px;"></span>
+        </button>
+      </div>
+      
+      <p class="target-url">{{ link.target_url }}</p>
+      
+      <div class="link-footer">
+        <div class="link-stats">
+          <span><strong>{{ link.clicks }}</strong> Clicks</span>
+          <span>Expires: <strong>{{ getExpirationDisplay(link.expires_at) }}</strong></span>
+        </div>
+        <div class="link-actions">
+          <div class="qr-code-container" (click)="openQRModal(link)" title="Click to view QR Code">
+            <img [src]="link.qr_code" alt="QR Code" class="qr-code-img" />
+          </div>
+          <button class="analytics-btn btn-icon" (click)="openAnalytics(link)" title="View Analytics">
+            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg'); width: 16px; height: 16px;"></span>
+          </button>
+          <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link">
+            <span class="svg-icon" style="--url: url('assets/icons/edit.svg'); width: 16px; height: 16px;"></span>
+          </button>
+        </div>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<app-modal [isOpen]="showQRModal" title="QR Code" iconClass="qr-icon" (closeModal)="closeQRModal()">
+  <div class="qr-display">
+    <img [src]="selectedLink?.qr_code" alt="QR Code" style="width: 100%;" />
+  </div>
+  <p class="qr-description">Scan this QR code to access your short link</p>
+</app-modal>
+
+<app-modal [isOpen]="showEditModal" title="Edit Link" (closeModal)="closeEditModal()">
+  <form [formGroup]="editForm" (ngSubmit)="saveEdit()" autocomplete="off">
+    <div class="form-group">
+      <label>Destination URL</label>
+      <app-input
+        type="url"
+        formControlName="target_url"
+        [required]="true"
+        tooltip="Update the destination URL"
+      ></app-input>
+    </div>
+    <app-button
+      type="submit"
+      label="Save Changes"
+      [loading]="editLoading"
+      [disabled]="editForm.invalid || editLoading"
+      tooltip="Save your changes"
+    ></app-button>
+  </form>
+</app-modal>
+
+<app-modal [isOpen]="showAnalyticsModal" title="Link Analytics" iconClass="analytics-icon" (closeModal)="closeAnalyticsModal()">
+  <div *ngIf="analyticsLoading" class="loader"></div>
+  <div *ngIf="!analyticsLoading && analytics">
+    <div class="analytics-summary">
+      <div class="summary-stat">
+        <span class="stat-value">{{ analytics.total_clicks }}</span>
+        <span class="stat-label">Total Clicks</span>
+      </div>
+      <div class="summary-stat">
+        <span class="stat-value">{{ analytics.unique_clicks }}</span>
+        <span class="stat-label">Unique Visitors</span>
+      </div>
+    </div>
+    
+    <div class="analytics-grid">
+      <div class="analytics-section">
+        <h3>Devices</h3>
+        <ul class="analytics-list">
+          <li *ngFor="let item of getAnalyticsArray(analytics.devices)">
+            <span class="item-name">{{ item.key }}</span>
+            <span class="item-count">{{ item.value }}</span>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="analytics-section">
+        <h3>Browsers</h3>
+        <ul class="analytics-list">
+          <li *ngFor="let item of getAnalyticsArray(analytics.browsers)">
+            <span class="item-name">{{ item.key }}</span>
+            <span class="item-count">{{ item.value }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</app-modal>

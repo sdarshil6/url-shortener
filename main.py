@@ -1,4 +1,4 @@
-from config import settings
+﻿from config import settings
 import config
 from database import SessionLocal, engine
 import email_utils
@@ -15,13 +15,11 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List
 from sqlalchemy.orm import Session
-from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks
 import validators
 from jose import JWTError, jwt
-from fastapi.staticfiles import StaticFiles
 import logging
 from fastapi.responses import JSONResponse
 from logging_config import setup_logging
@@ -38,6 +36,17 @@ app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# CORS middleware for Angular frontend
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['http://localhost:4200', 'http://127.0.0.1:4200'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+
+
 
 @app.middleware("http")
 async def log_exceptions_middleware(request: Request, call_next):
@@ -50,10 +59,6 @@ async def log_exceptions_middleware(request: Request, call_next):
             status_code=500,
             content={"detail": "An internal server error occurred."},
         )
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-templates = Jinja2Templates(directory="templates")
 
 
 def get_db():
@@ -232,11 +237,6 @@ def delete_url(
 
     crud.deactivate_db_url_by_secret_key(db, secret_key)
     return {"detail": f"Successfully deactivated short URL for '{db_url.target_url}'"}
-
-
-@app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/{url_key}")

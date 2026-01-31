@@ -1,0 +1,10 @@
+/* Global styles matching the original frontend design */
+@use 'styles/variables';
+@use 'styles/base';
+@use 'styles/utilities';
+@use 'styles/components';
+@use 'styles/layout';
+@use 'styles/auth';
+@use 'styles/dashboard';
+@use 'styles/modals';
+@use 'styles/responsive';

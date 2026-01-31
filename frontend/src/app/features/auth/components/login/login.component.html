@@ -1,0 +1,67 @@
+<app-auth-layout 
+  title="Welcome Back" 
+  subtitle="Access your enterprise link management dashboard"
+  icon="log-in"
+  featureText="Secure authentication with SSO support">
+  
+  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="auth-form" autocomplete="off">
+    <div class="form-group">
+      <app-input
+        type="email"
+        placeholder="Email Address"
+        formControlName="username"
+        icon="mail"
+        [required]="true"
+        tooltip="Enter your registered email address"
+      ></app-input>
+      <div class="error-message" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+        <span *ngIf="loginForm.get('username')?.errors?.['required']">Email is required</span>
+        <span *ngIf="loginForm.get('username')?.errors?.['email']">Please enter a valid email</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <app-input
+        type="password"
+        placeholder="Password"
+        formControlName="password"
+        icon="lock"
+        [required]="true"
+        tooltip="Enter your password"
+      ></app-input>
+      <div class="error-message" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+        <span *ngIf="loginForm.get('password')?.errors?.['required']">Password is required</span>
+      </div>
+    </div>
+
+    <div class="forgot-password-container">
+      <a routerLink="/auth/forgot-password" class="forgot-password-link" title="Reset your password via email">
+        Forgot Password?
+      </a>
+    </div>
+
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <app-button
+      type="submit"
+      label="Sign In"
+      [loading]="loading"
+      [disabled]="loginForm.invalid || loading"
+    ></app-button>
+
+
+    <div class="divider"><span>or</span></div>
+
+    <a [href]="googleLoginUrl" class="google-btn" title="Sign in with your Google account">
+      <img src="/google-logo.svg" width="20" height="20" alt="Google" />
+      <span>Continue with Google</span>
+    </a>
+  </form>
+
+  <div class="auth-footer">
+    <p>Don't have an account? <a routerLink="/auth/register">Create one now</a></p>
+  </div>
+
+</app-auth-layout>

@@ -1,0 +1,61 @@
+<div class="create-link-form">
+  <h2 class="form-title">
+    <i class="lucide-link"></i>
+    Shorten Link
+  </h2>
+
+  <form [formGroup]="linkForm" (ngSubmit)="onSubmit()" autocomplete="off">
+    <div class="form-group">
+      <label for="target_url">Enter Long URL</label>
+      <app-input
+        formControlName="target_url"
+        type="url"
+        placeholder="https://example.com/very-long-url"
+        iconClass="lucide-globe"
+        [tooltip]="'Enter the URL you want to shorten'"
+      ></app-input>
+      <div class="error-message" *ngIf="linkForm.get('target_url')?.invalid && linkForm.get('target_url')?.touched">
+        <span *ngIf="linkForm.get('target_url')?.errors?.['required']">URL is required</span>
+        <span *ngIf="linkForm.get('target_url')?.errors?.['pattern']">Please enter a valid URL (starting with http:// or https://)</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="custom_code">Custom Code (Optional)</label>
+      <app-input
+        formControlName="custom_code"
+        type="text"
+        placeholder="my-custom-code"
+        iconClass="lucide-edit"
+        [tooltip]="'Create a custom short code (letters, numbers, dashes, underscores)'"
+      ></app-input>
+      <div class="error-message" *ngIf="linkForm.get('custom_code')?.invalid && linkForm.get('custom_code')?.touched">
+        <span *ngIf="linkForm.get('custom_code')?.errors?.['pattern']">Only letters, numbers, dashes and underscores allowed</span>
+      </div>
+    </div>
+
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <div class="success-message" *ngIf="successMessage">
+      {{ successMessage }}
+    </div>
+
+    <div class="form-actions">
+      <app-button
+        type="submit"
+        [label]="'Shorten Link'"
+        [disabled]="!linkForm.valid"
+        [loading]="isLoading"
+        customClass="primary-btn"
+      ></app-button>
+      <app-button
+        type="button"
+        [label]="'Clear'"
+        (click)="clearForm()"
+        customClass="secondary-btn"
+      ></app-button>
+    </div>
+  </form>
+</div>

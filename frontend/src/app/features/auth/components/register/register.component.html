@@ -1,0 +1,62 @@
+<app-auth-layout 
+  title="Create Your Account" 
+  subtitle="Join thousands of businesses managing their links efficiently"
+  icon="user-plus"
+  featureText="Advanced analytics & custom branded links included">
+  
+  <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form" autocomplete="off">
+      <div class="form-group">
+        <app-input
+          formControlName="email"
+          type="email"
+          placeholder="Email address"
+          icon="mail"
+          [tooltip]="'Enter a valid email address'"
+        ></app-input>
+        <div class="error-message" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
+          <span *ngIf="registerForm.get('email')?.errors?.['required']">Email is required</span>
+          <span *ngIf="registerForm.get('email')?.errors?.['email']">Please enter a valid email</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <app-input
+          formControlName="password"
+          type="password"
+          placeholder="Password"
+          icon="lock"
+          [tooltip]="'Password must be at least 8 characters'"
+        ></app-input>
+        <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
+          <span *ngIf="registerForm.get('password')?.errors?.['required']">Password is required</span>
+          <span *ngIf="registerForm.get('password')?.errors?.['minlength']">Password must be at least 8 characters</span>
+        </div>
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+
+      <app-button
+        type="submit"
+        [label]="'Create Account'"
+        [disabled]="!registerForm.valid"
+        [loading]="isLoading"
+        customClass="auth-btn"
+      ></app-button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <button type="button" class="google-btn">
+        <img src="/google-logo.svg" alt="Google" class="google-icon">
+        <span>Sign up with Google</span>
+      </button>
+  </form>
+
+  <div class="auth-footer">
+    <p>Already have an account? <a routerLink="/auth/login">Sign in</a></p>
+  </div>
+
+</app-auth-layout>

@@ -1,0 +1,20 @@
+<nav class="navbar">
+  <div class="navbar-container">
+    <div class="navbar-brand">
+      <i class="lucide-link-2"></i>
+      <span class="brand-name">Shortify</span>
+    </div>
+
+    <div class="navbar-actions">
+      <div class="user-info" [attr.data-tooltip]="'Logged in as ' + username">
+        <i class="lucide-user"></i>
+        <span class="username">{{ username }}</span>
+      </div>
+      
+      <button class="logout-btn" (click)="logout()" data-tooltip="Logout">
+        <i class="lucide-log-out"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </div>
+</nav>
