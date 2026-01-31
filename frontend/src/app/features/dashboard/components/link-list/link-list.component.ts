@@ -177,7 +177,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.selectedLink = null;
   }
 
-  getAnalyticsArray(obj: { [key: string]: number }): { key: string; value: number }[] {
+  getAnalyticsArray(obj: { [key: string]: number } | undefined | null): { key: string; value: number }[] {
+    if (!obj) return [];
     return Object.entries(obj).map(([key, value]) => ({ key, value }));
   }
 }
