@@ -48,7 +48,7 @@
   </ul>
 </div>
 
-<app-modal [isOpen]="showQRModal" title="QR Code" iconClass="qr-icon" (closeModal)="closeQRModal()">
+<app-modal [isOpen]="showQRModal" title="QR Code" (closeModal)="closeQRModal()">
   <div class="qr-modal-body">
     <div class="qr-display">
       <img *ngIf="selectedLink?.qr_code" [src]="selectedLink!.qr_code" alt="QR Code" />
@@ -85,7 +85,7 @@
   </form>
 </app-modal>
 
-<app-modal [isOpen]="showAnalyticsModal" title="Link Analytics" iconClass="analytics-icon" (closeModal)="closeAnalyticsModal()">
+<app-modal [isOpen]="showAnalyticsModal" title="Link Analytics" (closeModal)="closeAnalyticsModal()">
   <div class="analytics-modal-body">
     <div *ngIf="analyticsLoading" class="analytics-loader">
       <div class="loader"></div>
