@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
@@ -22,7 +23,8 @@ export class RegisterComponent {
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private toastService: ToastService
   ) {
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -40,13 +42,16 @@ export class RegisterComponent {
       this.authService.register({ username: email, email, password }).subscribe({
         next: () => {
           this.isLoading = false;
+          this.toastService.success('Registration successful! Please verify your email.');
           this.router.navigate(['/auth/verify-otp'], { 
             queryParams: { email: email, username: email }
           });
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.detail || 'Registration failed. Please try again.';
+          const message = error.error?.detail || 'Registration failed. Please try again.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }

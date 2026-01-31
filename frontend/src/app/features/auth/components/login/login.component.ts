@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
@@ -26,7 +27,8 @@ export class LoginComponent implements OnInit {
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -74,11 +76,14 @@ export class LoginComponent implements OnInit {
 
       this.authService.login(this.loginForm.value).subscribe({
         next: () => {
+          this.toastService.success('Login successful! Welcome back.');
           this.router.navigate(['/dashboard']);
         },
         error: (error) => {
           this.loading = false;
-          this.errorMessage = error.error?.detail || 'Login failed. Please try again.';
+          const message = error.error?.detail || 'Login failed. Please try again.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }

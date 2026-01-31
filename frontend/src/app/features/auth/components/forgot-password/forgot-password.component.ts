@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
@@ -22,7 +23,8 @@ export class ForgotPasswordComponent {
 
   constructor(
     private fb: FormBuilder,
-    private authService: AuthService
+    private authService: AuthService,
+    private toastService: ToastService
   ) {
     this.forgotForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
@@ -41,11 +43,14 @@ export class ForgotPasswordComponent {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset link has been sent to your email. Please check your inbox.';
+          this.toastService.success('Password reset link sent! Check your email.');
           this.forgotForm.reset();
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.detail || 'Failed to send reset link. Please try again.';
+          const message = error.error?.detail || 'Failed to send reset link. Please try again.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }

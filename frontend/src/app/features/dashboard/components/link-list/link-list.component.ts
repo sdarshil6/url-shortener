@@ -2,6 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { LinkService } from '../../../../core/services/link.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { Link, LinkAnalytics } from '../../../../core/models/link.model';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -33,7 +34,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   constructor(
     private linkService: LinkService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -59,14 +61,16 @@ export class LinkListComponent implements OnInit, OnDestroy {
         this.links = links;
         this.loading = false;
       },
-      error: () => {
+      error: (error) => {
         this.loading = false;
+        this.toastService.error('Failed to load links. Please try again.');
       }
     });
   }
 
   refreshLinks(): void {
     this.loadLinks();
+    this.toastService.info('Links refreshed');
   }
 
   getShortUrl(shortCode: string): string {
@@ -85,6 +89,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   copyToClipboard(shortCode: string): void {
     const url = this.getShortUrl(shortCode);
     navigator.clipboard.writeText(url);
+    this.toastService.success('Link copied to clipboard!');
   }
 
   openQRModal(link: Link): void {
@@ -120,11 +125,13 @@ export class LinkListComponent implements OnInit, OnDestroy {
       }).subscribe({
         next: () => {
           this.editLoading = false;
+          this.toastService.success('Link updated successfully!');
           this.closeEditModal();
           this.loadLinks();
         },
-        error: () => {
+        error: (error) => {
           this.editLoading = false;
+          this.toastService.error('Failed to update link. Please try again.');
         }
       });
     }
@@ -140,8 +147,9 @@ export class LinkListComponent implements OnInit, OnDestroy {
         this.analytics = data;
         this.analyticsLoading = false;
       },
-      error: () => {
+      error: (error) => {
         this.analyticsLoading = false;
+        this.toastService.error('Failed to load analytics.');
       }
     });
   }

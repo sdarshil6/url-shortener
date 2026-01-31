@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LinkService } from '../../../../core/services/link.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 
@@ -20,7 +21,8 @@ export class CreateLinkComponent {
 
   constructor(
     private fb: FormBuilder,
-    private linkService: LinkService
+    private linkService: LinkService,
+    private toastService: ToastService
   ) {
     this.linkForm = this.fb.group({
       target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
@@ -46,6 +48,7 @@ export class CreateLinkComponent {
         next: (response) => {
           this.isLoading = false;
           this.successMessage = 'Link created successfully!';
+          this.toastService.success('Link created successfully!');
           this.linkForm.reset();
           
           // Trigger refresh in parent component (link-list)
@@ -57,7 +60,9 @@ export class CreateLinkComponent {
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.detail || 'Failed to create link. Please try again.';
+          const message = error.error?.detail || 'Failed to create link. Please try again.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }

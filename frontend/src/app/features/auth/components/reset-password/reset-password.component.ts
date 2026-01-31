@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
@@ -25,7 +26,8 @@ export class ResetPasswordComponent implements OnInit {
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {
     this.resetForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(8)]]
@@ -38,6 +40,7 @@ export class ResetPasswordComponent implements OnInit {
       
       if (!this.token) {
         this.errorMessage = 'Invalid or missing reset token.';
+        this.toastService.error('Invalid or missing reset token.');
       }
     });
   }
@@ -54,13 +57,16 @@ export class ResetPasswordComponent implements OnInit {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset successfully! Redirecting to login...';
+          this.toastService.success('Password reset successfully!');
           setTimeout(() => {
             this.router.navigate(['/auth/login']);
           }, 2000);
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.detail || 'Failed to reset password. The link may have expired.';
+          const message = error.error?.detail || 'Failed to reset password. The link may have expired.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
@@ -27,7 +28,8 @@ export class VerifyOtpComponent implements OnInit {
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {
     this.otpForm = this.fb.group({
       otp: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
@@ -40,6 +42,7 @@ export class VerifyOtpComponent implements OnInit {
       this.username = params['username'] || '';
       
       if (!this.email || !this.username) {
+        this.toastService.warning('Please register first to verify your email.');
         this.router.navigate(['/auth/register']);
       }
     });
@@ -61,13 +64,16 @@ export class VerifyOtpComponent implements OnInit {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Email verified successfully! Redirecting to login...';
+          this.toastService.success('Email verified successfully!');
           setTimeout(() => {
             this.router.navigate(['/auth/login']);
           }, 2000);
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.detail || 'Invalid OTP. Please try again.';
+          const message = error.error?.detail || 'Invalid OTP. Please try again.';
+          this.errorMessage = message;
+          this.toastService.error(message);
         }
       });
     }
@@ -83,6 +89,7 @@ export class VerifyOtpComponent implements OnInit {
     setTimeout(() => {
       this.isResending = false;
       this.successMessage = 'OTP has been resent to your email.';
+      this.toastService.info('OTP has been resent to your email.');
     }, 1000);
   }
 }
