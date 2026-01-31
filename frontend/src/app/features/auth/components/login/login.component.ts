@@ -39,20 +39,22 @@ export class LoginComponent implements OnInit {
     this.googleLoginUrl = this.authService.getGoogleLoginUrl();
 
     // Check for token from Google Auth redirect
-    this.route.queryParams.subscribe(params => {
-      const token = params['token'];
-      if (token) {
-        this.authService.handleAuthenticationPublic(token);
-        this.toastService.success('Welcome! You have been signed in with Google.');
-        this.router.navigate(['/dashboard']);
-      }
-      
-      const error = params['error'];
-      if (error) {
-        this.errorMessage = 'Authentication failed: ' + error;
-        this.toastService.error('Google authentication failed. Please try again.');
-      }
-    });
+    const token = this.route.snapshot.queryParamMap.get('token');
+    const error = this.route.snapshot.queryParamMap.get('error');
+    
+    if (token) {
+      this.authService.handleAuthenticationPublic(token);
+      this.toastService.success('Welcome! You have been signed in with Google.');
+      // Navigate without query params
+      setTimeout(() => {
+        this.router.navigate(['/dashboard'], { replaceUrl: true });
+      }, 100);
+    } else if (error) {
+      this.errorMessage = 'Authentication failed: ' + error;
+      this.toastService.error('Google authentication failed. Please try again.');
+      // Clear error from URL
+      this.router.navigate(['/auth/login'], { replaceUrl: true });
+    }
   }
 
   onSubmit(): void {
