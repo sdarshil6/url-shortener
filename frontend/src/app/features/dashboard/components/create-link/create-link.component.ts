@@ -47,8 +47,8 @@ export class CreateLinkComponent {
       this.linkService.createLink(linkData).subscribe({
         next: (response) => {
           this.isLoading = false;
-          this.successMessage = 'Link created successfully!';
-          this.toastService.success('Link created successfully!');
+          this.successMessage = 'Your link has been created.';
+          this.toastService.success('Your link has been created.');
           this.linkForm.reset();
           
           // Trigger refresh in parent component (link-list)

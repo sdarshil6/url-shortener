@@ -28,7 +28,7 @@ export class NavbarComponent implements OnInit {
 
   logout() {
     this.authService.logout();
-    this.toastService.info('You have been logged out.');
+    this.toastService.info('You have been signed out. See you again soon!');
     this.router.navigate(['/auth/login']);
   }
 }

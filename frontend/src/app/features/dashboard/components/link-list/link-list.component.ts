@@ -61,17 +61,19 @@ export class LinkListComponent implements OnInit, OnDestroy {
       next: (links) => {
         this.links = links;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.loading = false;
-        this.toastService.error('Failed to load links. Please try again.');
+        this.toastService.error("We couldn't load your links. Please try again.");
+        this.cdr.detectChanges();
       }
     });
   }
 
   refreshLinks(): void {
     this.loadLinks();
-    this.toastService.info('Links refreshed');
+    this.toastService.info('Your links have been refreshed.');
   }
 
   getShortUrl(shortCode: string): string {
@@ -90,7 +92,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   copyToClipboard(shortCode: string): void {
     const url = this.getShortUrl(shortCode);
     navigator.clipboard.writeText(url);
-    this.toastService.success('Link copied to clipboard!');
+    this.toastService.success('Link copied to clipboard.');
   }
 
   openQRModal(link: Link): void {
@@ -104,6 +106,18 @@ export class LinkListComponent implements OnInit, OnDestroy {
   closeQRModal(): void {
     this.showQRModal = false;
     this.selectedLink = null;
+  }
+
+  downloadQR(): void {
+    if (!this.selectedLink?.qr_code) return;
+    
+    const link = document.createElement('a');
+    link.href = this.selectedLink.qr_code;
+    link.download = `qr-code-${this.selectedLink.url}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    this.toastService.success('QR code downloaded.');
   }
 
   openEditModal(link: Link): void {
@@ -132,13 +146,13 @@ export class LinkListComponent implements OnInit, OnDestroy {
       }).subscribe({
         next: () => {
           this.editLoading = false;
-          this.toastService.success('Link updated successfully!');
+          this.toastService.success('Your link has been updated.');
           this.closeEditModal();
           this.loadLinks();
         },
         error: (error) => {
           this.editLoading = false;
-          this.toastService.error('Failed to update link. Please try again.');
+          this.toastService.error("We couldn't update your link. Please try again.");
         }
       });
     }
@@ -163,7 +177,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
         // Ensure state update happens in next tick to avoid NG0100
         setTimeout(() => {
           this.analyticsLoading = false;
-          this.toastService.error('Failed to load analytics.');
+          this.toastService.error("We couldn't load analytics for this link.");
           this.closeAnalyticsModal();
           this.cdr.detectChanges();
         });

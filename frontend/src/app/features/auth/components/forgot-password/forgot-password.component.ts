@@ -43,7 +43,7 @@ export class ForgotPasswordComponent {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset link has been sent to your email. Please check your inbox.';
-          this.toastService.success('Password reset link sent! Check your email.');
+          this.toastService.success('Password reset instructions have been sent to your email.');
           this.forgotForm.reset();
         },
         error: (error) => {

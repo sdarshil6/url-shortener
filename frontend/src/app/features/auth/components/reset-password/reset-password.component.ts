@@ -40,7 +40,7 @@ export class ResetPasswordComponent implements OnInit {
       
       if (!this.token) {
         this.errorMessage = 'Invalid or missing reset token.';
-        this.toastService.error('Invalid or missing reset token.');
+        this.toastService.error('The reset link is invalid or has expired.');
       }
     });
   }
@@ -57,7 +57,7 @@ export class ResetPasswordComponent implements OnInit {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset successfully! Redirecting to login...';
-          this.toastService.success('Password reset successfully!');
+          this.toastService.success('Your password has been reset successfully.');
           setTimeout(() => {
             this.router.navigate(['/auth/login']);
           }, 2000);

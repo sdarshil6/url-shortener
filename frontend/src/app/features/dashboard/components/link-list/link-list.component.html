@@ -49,10 +49,19 @@
 </div>
 
 <app-modal [isOpen]="showQRModal" title="QR Code" iconClass="qr-icon" (closeModal)="closeQRModal()">
-  <div class="qr-display">
-    <img [src]="selectedLink?.qr_code" alt="QR Code" style="width: 100%;" />
+  <div class="qr-modal-body">
+    <div class="qr-display">
+      <img *ngIf="selectedLink?.qr_code" [src]="selectedLink!.qr_code" alt="QR Code" />
+    </div>
+    <div class="qr-link-info">
+      <span class="qr-short-url">{{ selectedLink ? getDisplayUrl(selectedLink.url) : '' }}</span>
+    </div>
+    <p class="qr-description">Scan this QR code to access your short link</p>
+    <button class="qr-download-btn" (click)="downloadQR()" *ngIf="selectedLink?.qr_code">
+      <span class="svg-icon" style="--url: url('assets/icons/download.svg'); width: 14px; height: 14px;"></span>
+      Download QR Code
+    </button>
   </div>
-  <p class="qr-description">Scan this QR code to access your short link</p>
 </app-modal>
 
 <app-modal [isOpen]="showEditModal" title="Edit Link" (closeModal)="closeEditModal()">
@@ -77,38 +86,56 @@
 </app-modal>
 
 <app-modal [isOpen]="showAnalyticsModal" title="Link Analytics" iconClass="analytics-icon" (closeModal)="closeAnalyticsModal()">
-  <div *ngIf="analyticsLoading" class="loader"></div>
-  <div *ngIf="!analyticsLoading && analytics">
-    <div class="analytics-summary">
-      <div class="summary-stat">
-        <span class="stat-value">{{ analytics.total_clicks }}</span>
-        <span class="stat-label">Total Clicks</span>
-      </div>
-      <div class="summary-stat">
-        <span class="stat-value">{{ analytics.unique_clicks }}</span>
-        <span class="stat-label">Unique Visitors</span>
-      </div>
+  <div class="analytics-modal-body">
+    <div *ngIf="analyticsLoading" class="analytics-loader">
+      <div class="loader"></div>
+      <p>Loading analytics...</p>
     </div>
-    
-    <div class="analytics-grid">
-      <div class="analytics-section">
-        <h3>Devices</h3>
-        <ul class="analytics-list">
-          <li *ngFor="let item of getAnalyticsArray(analytics.devices)">
-            <span class="item-name">{{ item.key }}</span>
-            <span class="item-count">{{ item.value }}</span>
-          </li>
-        </ul>
+    <div *ngIf="!analyticsLoading && analytics" class="analytics-content">
+      <div class="analytics-link-info" *ngIf="selectedLink">
+        <span class="analytics-short-url">{{ getDisplayUrl(selectedLink.url) }}</span>
+      </div>
+      <div class="analytics-summary">
+        <div class="summary-stat">
+          <span class="stat-value">{{ analytics.total_clicks }}</span>
+          <span class="stat-label">Total Clicks</span>
+        </div>
+        <div class="summary-stat">
+          <span class="stat-value">{{ analytics.unique_clicks }}</span>
+          <span class="stat-label">Unique Visitors</span>
+        </div>
       </div>
       
-      <div class="analytics-section">
-        <h3>Browsers</h3>
-        <ul class="analytics-list">
-          <li *ngFor="let item of getAnalyticsArray(analytics.browsers)">
-            <span class="item-name">{{ item.key }}</span>
-            <span class="item-count">{{ item.value }}</span>
-          </li>
-        </ul>
+      <div class="analytics-grid">
+        <div class="analytics-section" *ngIf="getAnalyticsArray(analytics.devices).length > 0">
+          <h3>
+            <span class="svg-icon" style="--url: url('assets/icons/smartphone.svg'); width: 14px; height: 14px;"></span>
+            Devices
+          </h3>
+          <ul class="analytics-list">
+            <li *ngFor="let item of getAnalyticsArray(analytics.devices)">
+              <span class="item-name">{{ item.key }}</span>
+              <span class="item-count">{{ item.value }}</span>
+            </li>
+          </ul>
+        </div>
+        
+        <div class="analytics-section" *ngIf="getAnalyticsArray(analytics.browsers).length > 0">
+          <h3>
+            <span class="svg-icon" style="--url: url('assets/icons/globe.svg'); width: 14px; height: 14px;"></span>
+            Browsers
+          </h3>
+          <ul class="analytics-list">
+            <li *ngFor="let item of getAnalyticsArray(analytics.browsers)">
+              <span class="item-name">{{ item.key }}</span>
+              <span class="item-count">{{ item.value }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="analytics-empty" *ngIf="analytics.total_clicks === 0">
+        <p>No click data available yet. Share your link to start tracking!</p>
       </div>
     </div>
   </div>

@@ -42,7 +42,7 @@ export class RegisterComponent {
       this.authService.register({ username: email, email, password }).subscribe({
         next: () => {
           this.isLoading = false;
-          this.toastService.success('Registration successful! Please verify your email.');
+          this.toastService.success('Account created. Please check your email to verify.');
           this.router.navigate(['/auth/verify-otp'], { 
             queryParams: { email: email, username: email }
           });

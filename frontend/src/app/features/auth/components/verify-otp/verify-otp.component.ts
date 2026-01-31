@@ -64,7 +64,7 @@ export class VerifyOtpComponent implements OnInit {
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Email verified successfully! Redirecting to login...';
-          this.toastService.success('Email verified successfully!');
+          this.toastService.success('Your email has been verified.');
           setTimeout(() => {
             this.router.navigate(['/auth/login']);
           }, 2000);
@@ -89,7 +89,7 @@ export class VerifyOtpComponent implements OnInit {
     setTimeout(() => {
       this.isResending = false;
       this.successMessage = 'OTP has been resent to your email.';
-      this.toastService.info('OTP has been resent to your email.');
+      this.toastService.info('A new verification code has been sent to your email.');
     }, 1000);
   }
 }
