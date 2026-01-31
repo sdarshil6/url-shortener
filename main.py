@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import List
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks
 import validators
 from jose import JWTError, jwt
@@ -362,23 +362,13 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         access_token = auth.create_access_token(data={"sub": user.email})
 
-        return HTMLResponse(f"""
-            <html>
-                <head>
-                    <title>Authentication Successful</title>
-                </head>
-                <body>
-                    <h1>Authentication successful! Redirecting...</h1>
-                    <script>
-                        window.localStorage.setItem('accessToken', '{access_token}');
-                        window.location.href = '/';
-                    </script>
-                </body>
-            </html>
-        """)
+        # Redirect to frontend with token
+        return RedirectResponse(
+            url=f"http://localhost:4200/auth/login?token={access_token}"
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to authenticate with Google: {e}")
+        logging.error(f"Failed to authenticate with Google: {e}")
+        return RedirectResponse(url="http://localhost:4200/auth/login?error=GoogleAuthFailed")
 
 
 @app.get("/admin/{secret_key}/analytics", response_model=schemas.AnalyticsData)
