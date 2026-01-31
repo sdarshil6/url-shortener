@@ -8,9 +8,14 @@ export const guestGuard: CanActivateFn = (route, state) => {
 
   // Allow access to verify-otp and reset-password even when not authenticated
   const allowedPaths = ['verify-otp', 'reset-password'];
-  const currentPath = route.routeConfig?.path || '';
+  const currentUrl = state.url;
   
-  if (allowedPaths.includes(currentPath)) {
+  if (allowedPaths.some(path => currentUrl.includes(path))) {
+    return true;
+  }
+
+  // Allow access to login page if there's a token query param (Google OAuth callback)
+  if (currentUrl.includes('token=') || currentUrl.includes('error=')) {
     return true;
   }
 

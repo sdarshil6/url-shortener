@@ -387,12 +387,14 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         access_token = auth.create_access_token(data={"sub": user.email})
 
         # Redirect to frontend with token
+        frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
         return RedirectResponse(
-            url=f"http://localhost:4200/auth/login?token={access_token}"
+            url=f"{frontend_url}auth/login?token={access_token}"
         )
     except Exception as e:
         logging.error(f"Failed to authenticate with Google: {e}")
-        return RedirectResponse(url="http://localhost:4200/auth/login?error=GoogleAuthFailed")
+        frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
+        return RedirectResponse(url=f"{frontend_url}auth/login?error=GoogleAuthFailed")
 
 
 @app.get("/admin/{secret_key}/analytics", response_model=schemas.AnalyticsData)

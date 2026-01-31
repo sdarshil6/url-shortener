@@ -19,6 +19,7 @@ export class RegisterComponent {
   registerForm: FormGroup;
   errorMessage = '';
   isLoading = false;
+  googleLoginUrl = '';
 
   constructor(
     private fb: FormBuilder,
@@ -26,6 +27,7 @@ export class RegisterComponent {
     private router: Router,
     private toastService: ToastService
   ) {
+    this.googleLoginUrl = this.authService.getGoogleLoginUrl();
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
