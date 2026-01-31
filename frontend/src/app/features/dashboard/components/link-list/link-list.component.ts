@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, OnDestroy } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { LinkService } from '../../../../core/services/link.service';
@@ -35,7 +35,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
   constructor(
     private linkService: LinkService,
     private fb: FormBuilder,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -94,7 +95,10 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   openQRModal(link: Link): void {
     this.selectedLink = link;
-    this.showQRModal = true;
+    setTimeout(() => {
+      this.showQRModal = true;
+      this.cdr.detectChanges();
+    });
   }
 
   closeQRModal(): void {
@@ -107,7 +111,10 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.editForm.patchValue({
       target_url: link.target_url
     });
-    this.showEditModal = true;
+    setTimeout(() => {
+      this.showEditModal = true;
+      this.cdr.detectChanges();
+    });
   }
 
   closeEditModal(): void {
@@ -139,17 +146,27 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   openAnalytics(link: Link): void {
     this.selectedLink = link;
-    this.showAnalyticsModal = true;
     this.analyticsLoading = true;
+    setTimeout(() => {
+      this.showAnalyticsModal = true;
+      this.cdr.detectChanges();
+    });
 
-    this.linkService.getAnalytics(link.url).subscribe({
+    // Use admin_url (secret_key) for analytics
+    this.linkService.getAnalytics(link.admin_url).subscribe({
       next: (data) => {
         this.analytics = data;
         this.analyticsLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
-        this.analyticsLoading = false;
-        this.toastService.error('Failed to load analytics.');
+        // Ensure state update happens in next tick to avoid NG0100
+        setTimeout(() => {
+          this.analyticsLoading = false;
+          this.toastService.error('Failed to load analytics.');
+          this.closeAnalyticsModal();
+          this.cdr.detectChanges();
+        });
       }
     });
   }

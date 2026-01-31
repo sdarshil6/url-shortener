@@ -27,7 +27,7 @@ export class LinkService {
     );
   }
 
-  getAnalytics(shortCode: string): Observable<LinkAnalytics> {
-    return this.http.get<LinkAnalytics>(`${this.API_URL}/analytics/${shortCode}`);
+  getAnalytics(secretKey: string): Observable<LinkAnalytics> {
+    return this.http.get<LinkAnalytics>(`${this.API_URL}/admin/${secretKey}/analytics`);
   }
 }

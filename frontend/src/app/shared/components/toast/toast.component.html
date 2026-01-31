@@ -1,6 +1,6 @@
 <div class="toast-container">
   <div 
-    *ngFor="let toast of toasts" 
+    *ngFor="let toast of toasts$ | async" 
     class="toast toast-{{ toast.type }}"
     (click)="removeToast(toast.id)"
   >

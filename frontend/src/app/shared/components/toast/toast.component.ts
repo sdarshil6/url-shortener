@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 import { ToastService, Toast } from '../../services/toast.service';
 
 @Component({
@@ -10,23 +10,14 @@ import { ToastService, Toast } from '../../services/toast.service';
   templateUrl: './toast.component.html',
   styleUrls: ['./toast.component.scss']
 })
-export class ToastComponent implements OnInit, OnDestroy {
-  toasts: Toast[] = [];
-  private subscription!: Subscription;
+export class ToastComponent implements OnInit {
+  toasts$: Observable<Toast[]>;
 
-  constructor(private toastService: ToastService) {}
-
-  ngOnInit(): void {
-    this.subscription = this.toastService.toasts$.subscribe(
-      toasts => this.toasts = toasts
-    );
+  constructor(private toastService: ToastService) {
+    this.toasts$ = this.toastService.toasts$;
   }
 
-  ngOnDestroy(): void {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-    }
-  }
+  ngOnInit(): void {}
 
   removeToast(id: number): void {
     this.toastService.remove(id);
