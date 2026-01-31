@@ -1,15 +1,214 @@
 import smtplib
 import ssl
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Tuple
+from dataclasses import dataclass
+from enum import Enum
 
 from config import settings
+from logging_config import get_logger
+
+# Module-specific logger
+logger = get_logger(__name__)
 
 
-def send_otp_email(email: str, otp: str):
+class EmailStatus(Enum):
+    """Status codes for email operations."""
+    SUCCESS = "success"
+    FAILED = "failed"
+    RETRYING = "retrying"
+
+
+@dataclass
+class EmailResult:
+    """Result of an email send operation."""
+    status: EmailStatus
+    message: str
+    attempts: int = 1
+
+
+def _send_email_with_retry(
+    email: str,
+    message: MIMEMultipart,
+    email_type: str,
+    max_retries: int = 3,
+    base_delay: float = 1.0
+) -> EmailResult:
     """
-    Sends a one-time password (OTP) to the user's email address using Python's built-in smtplib.
+    Send an email with exponential backoff retry logic.
+    
+    Args:
+        email: Recipient email address
+        message: The MIMEMultipart message to send
+        email_type: Type of email for logging (e.g., 'otp', 'password_reset')
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay in seconds for exponential backoff
+    
+    Returns:
+        EmailResult with status and details
     """
+    last_error = None
+    
+    for attempt in range(1, max_retries + 1):
+        server = None
+        try:
+            logger.debug(
+                f"Attempting to send {email_type} email",
+                extra={'extra_data': {'email': email, 'attempt': attempt, 'max_retries': max_retries}}
+            )
+            
+            context = ssl.create_default_context()
+            server = smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT, timeout=30)
+            server.starttls(context=context)
+            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+            server.sendmail(settings.MAIL_FROM, email, message.as_string())
+            
+            logger.info(
+                f"{email_type.replace('_', ' ').title()} email sent successfully",
+                extra={'extra_data': {'email': email, 'attempts': attempt}}
+            )
+            return EmailResult(
+                status=EmailStatus.SUCCESS,
+                message=f"Email sent successfully to {email}",
+                attempts=attempt
+            )
+            
+        except smtplib.SMTPConnectError as e:
+            last_error = e
+            logger.warning(
+                f"SMTP connection error on attempt {attempt}",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'attempt': attempt,
+                    'error': str(e)
+                }}
+            )
+        except smtplib.SMTPAuthenticationError as e:
+            # Don't retry on auth errors
+            logger.error(
+                f"SMTP authentication error - not retrying",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'error': str(e)
+                }}
+            )
+            return EmailResult(
+                status=EmailStatus.FAILED,
+                message=f"SMTP authentication failed: {str(e)}",
+                attempts=attempt
+            )
+        except smtplib.SMTPServerDisconnected as e:
+            last_error = e
+            logger.warning(
+                f"SMTP server disconnected on attempt {attempt}",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'attempt': attempt,
+                    'error': str(e)
+                }}
+            )
+        except smtplib.SMTPRecipientsRefused as e:
+            # Don't retry on recipient refused
+            logger.error(
+                f"SMTP recipients refused - not retrying",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'error': str(e)
+                }}
+            )
+            return EmailResult(
+                status=EmailStatus.FAILED,
+                message=f"Recipient refused: {str(e)}",
+                attempts=attempt
+            )
+        except smtplib.SMTPException as e:
+            last_error = e
+            logger.warning(
+                f"SMTP error on attempt {attempt}",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'attempt': attempt,
+                    'error_type': type(e).__name__,
+                    'error': str(e)
+                }}
+            )
+        except (ConnectionError, TimeoutError, OSError) as e:
+            last_error = e
+            logger.warning(
+                f"Network error on attempt {attempt}",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'attempt': attempt,
+                    'error_type': type(e).__name__,
+                    'error': str(e)
+                }}
+            )
+        except Exception as e:
+            last_error = e
+            logger.error(
+                f"Unexpected error sending email",
+                extra={'extra_data': {
+                    'email': email,
+                    'email_type': email_type,
+                    'attempt': attempt,
+                    'error_type': type(e).__name__,
+                    'error': str(e)
+                }},
+                exc_info=True
+            )
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+        
+        # Exponential backoff before retry
+        if attempt < max_retries:
+            delay = base_delay * (2 ** (attempt - 1))
+            logger.debug(
+                f"Waiting {delay}s before retry",
+                extra={'extra_data': {'email': email, 'delay': delay}}
+            )
+            time.sleep(delay)
+    
+    # All retries exhausted
+    logger.error(
+        f"Failed to send {email_type} email after {max_retries} attempts",
+        extra={'extra_data': {
+            'email': email,
+            'email_type': email_type,
+            'final_error': str(last_error)
+        }}
+    )
+    return EmailResult(
+        status=EmailStatus.FAILED,
+        message=f"Failed after {max_retries} attempts: {str(last_error)}",
+        attempts=max_retries
+    )
+
+
+def send_otp_email(email: str, otp: str) -> EmailResult:
+    """
+    Sends a one-time password (OTP) to the user's email address.
+    
+    Args:
+        email: Recipient email address
+        otp: The OTP code to send
+    
+    Returns:
+        EmailResult with status and details
+    """
+    logger.info(f"Preparing OTP email", extra={'extra_data': {'email': email}})
+    
     message = MIMEMultipart("alternative")
     message["Subject"] = "Your Shortify Account Verification Code"
     message["From"] = f"Shortify <{settings.MAIL_FROM}>"
@@ -29,28 +228,22 @@ def send_otp_email(email: str, otp: str):
     part = MIMEText(html_content, "html")
     message.attach(part)
 
-    context = ssl.create_default_context()
-
-    server = None
-    try:
-
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT)
-        server.starttls(context=context)  # Secure the connection
-        server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-        server.sendmail(settings.MAIL_FROM, email, message.as_string())
-        print(f"OTP email sent successfully to {email}")  # For debugging
-    except Exception as e:
-
-        print(f"Failed to send email: {e}")
-    finally:
-        if server:
-            server.quit()
+    return _send_email_with_retry(email, message, "otp")
 
 
-def send_password_reset_email(email: str, reset_link: str):
+def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     """
     Sends a password reset link to the user's email address.
+    
+    Args:
+        email: Recipient email address
+        reset_link: The password reset link
+    
+    Returns:
+        EmailResult with status and details
     """
+    logger.info(f"Preparing password reset email", extra={'extra_data': {'email': email}})
+    
     html_content = f"""
     <html>
         <body>
@@ -71,16 +264,4 @@ def send_password_reset_email(email: str, reset_link: str):
     part = MIMEText(html_content, "html")
     message.attach(part)
 
-    context = ssl.create_default_context()
-    server = None
-    try:
-        server = smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT)
-        server.starttls(context=context)
-        server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-        server.sendmail(settings.MAIL_FROM, email, message.as_string())
-        print(f"Password reset email sent successfully to {email}")
-    except Exception as e:
-        print(f"Failed to send password reset email: {e}")
-    finally:
-        if server:
-            server.quit()
+    return _send_email_with_retry(email, message, "password_reset")

@@ -20,14 +20,17 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks
 import validators
 from jose import JWTError, jwt
-import logging
 from fastapi.responses import JSONResponse
-from logging_config import setup_logging
+from logging_config import setup_logging, get_logger, set_request_id, set_request_context, clear_request_context, get_request_id
 from app_state import RECENT_CLICKS_CACHE, DEDUPLICATION_TIMEDELTA
 from background_tasks import lifespan
 import razorpay
+
 setup_logging()
 
+# Module-specific loggers
+logger = get_logger(__name__)
+audit_logger = get_logger('audit')
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -47,14 +50,45 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    """Middleware to set up request context for logging."""
+    # Generate correlation ID from header or create new one
+    correlation_id = request.headers.get('X-Correlation-ID') or set_request_id()
+    set_request_id(correlation_id)
+    
+    # Set basic request context
+    set_request_context({
+        'ip_address': request.client.host if request.client else 'unknown',
+        'endpoint': str(request.url.path),
+        'method': request.method,
+        'user_agent': request.headers.get('user-agent', 'unknown')[:200]
+    })
+    
+    try:
+        response = await call_next(request)
+        # Add correlation ID to response headers
+        response.headers['X-Correlation-ID'] = correlation_id
+        return response
+    finally:
+        clear_request_context()
+
 
 @app.middleware("http")
 async def log_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as e:
-
-        logging.error("An unhandled error occurred", exc_info=True)
+        logger.error(
+            "Unhandled error occurred",
+            extra={'extra_data': {
+                'endpoint': str(request.url.path),
+                'method': request.method,
+                'error_type': type(e).__name__,
+                'error_message': str(e)
+            }},
+            exc_info=True
+        )
         return JSONResponse(
             status_code=500,
             content={"detail": "An internal server error occurred."},
@@ -87,8 +121,19 @@ async def register_user(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
+        auth.log_auth_event(
+            event_type='registration',
+            success=False,
+            email=user.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='email_already_registered'
+        )
         raise HTTPException(status_code=400, detail="Email already registered")
 
     password = user.password
@@ -114,20 +159,48 @@ async def register_user(
     crud.create_user(db=db, user=user, otp=otp, otp_expires_at=otp_expires_at)
 
     background_tasks.add_task(email_utils.send_otp_email, user.email, otp)
+    
+    auth.log_auth_event(
+        event_type='registration',
+        success=True,
+        email=user.email,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
 
     return {"message": "Registration successful. Please check your email for an OTP to verify your account."}
 
 
 @app.post("/resend-otp")
 def resend_otp(
+    request: Request,
     resend_request: schemas.ResendOtpRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     user = crud.get_user_by_email(db, email=resend_request.email)
     if not user:
+        auth.log_auth_event(
+            event_type='resend_otp',
+            success=False,
+            email=resend_request.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='user_not_found'
+        )
         raise HTTPException(status_code=404, detail="User not found")
     if user.is_verified:
+        auth.log_auth_event(
+            event_type='resend_otp',
+            success=False,
+            email=resend_request.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='already_verified'
+        )
         raise HTTPException(status_code=400, detail="User is already verified")
     
     otp = str(secrets.randbelow(900000) + 100000)
@@ -137,20 +210,64 @@ def resend_otp(
     
     background_tasks.add_task(email_utils.send_otp_email, user.email, otp)
     
+    auth.log_auth_event(
+        event_type='resend_otp',
+        success=True,
+        email=resend_request.email,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
     return {"message": "A new OTP has been sent to your email."}
 
 
 @app.post("/verify-otp")
-def verify_otp(verification_data: schemas.OtpVerification, db: Session = Depends(get_db)):
+def verify_otp(request: Request, verification_data: schemas.OtpVerification, db: Session = Depends(get_db)):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     user = crud.get_user_by_email(db, email=verification_data.email)
     if not user:
+        auth.log_auth_event(
+            event_type='verify_otp',
+            success=False,
+            email=verification_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='user_not_found'
+        )
         raise HTTPException(status_code=404, detail="User not found")
     if not user.otp or user.otp != verification_data.otp:
+        auth.log_auth_event(
+            event_type='verify_otp',
+            success=False,
+            email=verification_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='invalid_otp'
+        )
         raise HTTPException(status_code=400, detail="Invalid or incorrect OTP")
     if user.otp_expires_at < datetime.now(timezone.utc):
+        auth.log_auth_event(
+            event_type='verify_otp',
+            success=False,
+            email=verification_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='otp_expired'
+        )
         raise HTTPException(status_code=400, detail="OTP has expired")
 
     crud.verify_user_otp(db, user=user)
+    
+    auth.log_auth_event(
+        event_type='verify_otp',
+        success=True,
+        email=verification_data.email,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
     return {"message": "Account verified successfully. You can now log in."}
 
 
@@ -159,16 +276,35 @@ def verify_otp(verification_data: schemas.OtpVerification, db: Session = Depends
 def login_for_access_token(
     request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
 
     user = crud.get_user_by_email(db, email=form_data.username)
 
     if user and user.auth_provider != 'email':
+        auth.log_auth_event(
+            event_type='login',
+            success=False,
+            email=form_data.username,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='wrong_auth_provider',
+            extra_data={'auth_provider': user.auth_provider}
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This account was created using a different method. Please use 'Sign in with Google'."
         )
 
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        auth.log_auth_event(
+            event_type='login',
+            success=False,
+            email=form_data.username,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='invalid_credentials'
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -176,12 +312,30 @@ def login_for_access_token(
         )
 
     if not user.is_verified:
+        auth.log_auth_event(
+            event_type='login',
+            success=False,
+            email=form_data.username,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='account_not_verified'
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account not verified. Please check your email for an OTP first.",
         )
 
     access_token = auth.create_access_token(data={"sub": user.email})
+    
+    auth.log_auth_event(
+        event_type='login',
+        success=True,
+        email=user.email,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        extra_data={'user_id': user.id}
+    )
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -306,16 +460,36 @@ def forward_to_target_url(
 
 @app.post("/forgot-password")
 async def forgot_password(
+    request: Request,
     payload: schemas.PasswordResetRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     user = crud.get_user_by_email(db, email=payload.email)
     if not user:
-
+        auth.log_auth_event(
+            event_type='forgot_password',
+            success=False,
+            email=payload.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='user_not_found'
+        )
         return {"message": "If an account with that email exists, a password reset link has been sent."}
 
     if user and user.auth_provider != 'email':
+        auth.log_auth_event(
+            event_type='forgot_password',
+            success=False,
+            email=payload.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='wrong_auth_provider',
+            extra_data={'auth_provider': user.auth_provider}
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This account was created using a different method. Please use 'Sign in with Google.'"
@@ -329,44 +503,107 @@ async def forgot_password(
     background_tasks.add_task(
         email_utils.send_password_reset_email, user.email, reset_link
     )
+    
+    auth.log_auth_event(
+        event_type='forgot_password',
+        success=True,
+        email=payload.email,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
 
     return {"message": "If an account with that email exists, a password reset link has been sent."}
 
 
 @app.post("/reset-password")
-def reset_password(payload: schemas.PasswordReset, db: Session = Depends(get_db)):
+def reset_password(request: Request, payload: schemas.PasswordReset, db: Session = Depends(get_db)):
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     try:
         token_payload = jwt.decode(
-            payload.token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+            payload.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         if token_payload.get("type") != "reset":
+            auth.log_auth_event(
+                event_type='reset_password',
+                success=False,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                reason='invalid_token_type'
+            )
             raise HTTPException(status_code=401, detail="Invalid token type")
         email = token_payload.get("sub")
-    except JWTError:
+    except JWTError as e:
+        auth.log_auth_event(
+            event_type='reset_password',
+            success=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='invalid_or_expired_token',
+            extra_data={'error': str(e)}
+        )
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = crud.get_user_by_reset_token(db, token=payload.token)
     if not user or user.email != email or user.reset_token_expires_at < datetime.now(timezone.utc):
+        auth.log_auth_event(
+            event_type='reset_password',
+            success=False,
+            email=email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='token_validation_failed'
+        )
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     crud.update_user_password(db, user=user, new_password=payload.new_password)
+    
+    auth.log_auth_event(
+        event_type='reset_password',
+        success=True,
+        email=user.email,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        extra_data={'user_id': user.id}
+    )
+    
     return {"message": "Password has been reset successfully."}
 
 
 @app.get("/auth/google/login")
-async def google_login():
+async def google_login(request: Request):
     """Generate login url and redirect."""
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
+    auth.log_auth_event(
+        event_type='google_login_initiated',
+        success=True,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
     return await auth.google_sso.get_login_redirect()
 
 
 @app.get("/auth/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Process login response from Google and return user token."""
+    ip_address = request.client.host if request.client else 'unknown'
+    user_agent = request.headers.get('user-agent', 'unknown')
+    
     try:
 
         async with auth.google_sso as sso:
             sso_user = await sso.verify_and_process(request)
 
         if not sso_user or not sso_user.email:
+            auth.log_auth_event(
+                event_type='google_callback',
+                success=False,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                reason='no_user_info_from_google'
+            )
             raise HTTPException(
                 status_code=400, detail="Could not retrieve user info from Google")
 
@@ -374,6 +611,15 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         if user:
             if user.auth_provider != 'google':
+                auth.log_auth_event(
+                    event_type='google_callback',
+                    success=False,
+                    email=sso_user.email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    reason='account_exists_with_different_provider',
+                    extra_data={'existing_provider': user.auth_provider}
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"An account with email {user.email} already exists. Please log in with your password."
@@ -383,8 +629,25 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 email=sso_user.email, password=None)
             user = crud.create_user(
                 db, user=new_user_data, is_verified=True, auth_provider='google')
+            auth.log_auth_event(
+                event_type='google_registration',
+                success=True,
+                email=sso_user.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                extra_data={'user_id': user.id}
+            )
 
         access_token = auth.create_access_token(data={"sub": user.email})
+        
+        auth.log_auth_event(
+            event_type='google_login',
+            success=True,
+            email=user.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            extra_data={'user_id': user.id}
+        )
 
         # Redirect to frontend with token
         frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
@@ -393,8 +656,18 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(
             url=f"{frontend_url}auth/login?token={access_token}"
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Failed to authenticate with Google: {e}")
+        auth.log_auth_event(
+            event_type='google_callback',
+            success=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='google_auth_error',
+            extra_data={'error': str(e)}
+        )
+        logger.error(f"Failed to authenticate with Google", extra={'extra_data': {'error': str(e)}}, exc_info=True)
         frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
         if not frontend_url.endswith('/'):
              frontend_url += '/'
@@ -430,6 +703,7 @@ def create_subscription(
     db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"Creating subscription", extra={'extra_data': {'user_id': current_user.id, 'plan_id': payload.plan_id}})
         subscription = razorpay_client.subscription.create({
             "plan_id": payload.plan_id,
             "total_count": 12,  # For a 12-cycle (1 year) subscription
@@ -440,12 +714,21 @@ def create_subscription(
         # Save the subscription ID to the user's record
         crud.update_user_subscription_id(
             db, current_user.id, sub_id=subscription['id'])
+        
+        logger.info(f"Subscription created successfully", extra={'extra_data': {
+            'user_id': current_user.id,
+            'subscription_id': subscription['id']
+        }})
 
         return {
             "subscription_id": subscription['id'],
             "key_id": settings.RAZORPAY_KEY_ID
         }
     except Exception as e:
+        logger.error(f"Error creating subscription", extra={'extra_data': {
+            'user_id': current_user.id,
+            'error': str(e)
+        }}, exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Error creating subscription: {str(e)}")
 
@@ -459,11 +742,14 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
             raw_body.decode(), signature, settings.RAZORPAY_WEBHOOK_SECRET
         )
     except Exception as e:
+        logger.warning(f"Webhook signature verification failed", extra={'extra_data': {'error': str(e)}})
         raise HTTPException(
             status_code=400, detail="Webhook signature verification failed")
 
     payload = await request.json()
     event = payload.get("event")
+    
+    logger.info(f"Received webhook event", extra={'extra_data': {'event': event}})
 
     if event == "invoice.paid":
         subscription_id = payload.get("payload", {}).get(
@@ -472,6 +758,7 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
             "invoice", {}).get("entity", {}).get("plan_id")
 
         if not subscription_id:
+            logger.warning(f"Webhook missing subscription_id")
             return Response(status_code=200)
 
         user = crud.get_user_by_subscription_id(db, sub_id=subscription_id)
@@ -479,7 +766,9 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
             plan_name = "pro" if plan_id == settings.RAZORPAY_PRO_PLAN_ID else "business"
             crud.update_user_plan_from_webhook(
                 db, user, plan_name=plan_name, status="active")
-            logging.info(
-                f"Subscription activated for user {user.email}, plan: {plan_name}")
+            logger.info(
+                f"Subscription activated for user",
+                extra={'extra_data': {'user_id': user.id, 'email': user.email, 'plan_name': plan_name}}
+            )
 
     return Response(status_code=200)
