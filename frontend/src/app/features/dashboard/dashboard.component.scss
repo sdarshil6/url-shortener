@@ -10,16 +10,16 @@
 
 .dashboard-main {
   flex: 1;
-  padding: 2.5rem 0;
+  padding: 1.5rem 0;
 }
 
 .dashboard-container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
   display: grid;
   grid-template-columns: 400px 1fr;
-  gap: 2.5rem;
+  gap: 1.5rem;
   align-items: start;
 }
 
