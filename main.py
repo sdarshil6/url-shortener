@@ -388,12 +388,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         # Redirect to frontend with token
         frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
+        if not frontend_url.endswith('/'):
+             frontend_url += '/'
         return RedirectResponse(
             url=f"{frontend_url}auth/login?token={access_token}"
         )
     except Exception as e:
         logging.error(f"Failed to authenticate with Google: {e}")
         frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
+        if not frontend_url.endswith('/'):
+             frontend_url += '/'
         return RedirectResponse(url=f"{frontend_url}auth/login?error=GoogleAuthFailed")
 
 

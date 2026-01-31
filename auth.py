@@ -37,7 +37,7 @@ def create_access_token(data: dict):
 google_sso = GoogleSSO(
     client_id=settings.GOOGLE_CLIENT_ID,
     client_secret=settings.GOOGLE_CLIENT_SECRET,
-    redirect_uri=settings.APP_URL + "auth/google/callback",
+    redirect_uri=settings.APP_URL.rstrip("/") + "/auth/google/callback",
     allow_insecure_http=settings.ALLOW_INSECURE_HTTP
 )
 
