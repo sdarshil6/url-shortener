@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from slowapi import Limiter, _rate_limit_exceeded_handler
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
@@ -70,7 +70,9 @@ def get_db():
 
 
 def add_qr_code_to_url_info(db_url: models.URL, request: Request):
-    full_short_url = str(request.base_url) + db_url.key
+    # Use APP_URL for QR code to ensure proper redirection
+    base_url = settings.APP_URL.rstrip('/')
+    full_short_url = f"{base_url}/{db_url.key}"
     db_url.url = db_url.key
     db_url.admin_url = db_url.secret_key
     db_url.qr_code = utils.generate_qr_code(full_short_url)
@@ -107,13 +109,35 @@ async def register_user(
         raise HTTPException(
             status_code=400, detail=f"Password must contain at least one special character ({special_characters}).")
     otp = str(secrets.randbelow(900000) + 100000)
-    otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
+    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
     crud.create_user(db=db, user=user, otp=otp, otp_expires_at=otp_expires_at)
 
     background_tasks.add_task(email_utils.send_otp_email, user.email, otp)
 
     return {"message": "Registration successful. Please check your email for an OTP to verify your account."}
+
+
+@app.post("/resend-otp")
+def resend_otp(
+    resend_request: schemas.ResendOtpRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    user = crud.get_user_by_email(db, email=resend_request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="User is already verified")
+    
+    otp = str(secrets.randbelow(900000) + 100000)
+    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    crud.update_user_otp(db, user=user, otp=otp, otp_expires_at=otp_expires_at)
+    
+    background_tasks.add_task(email_utils.send_otp_email, user.email, otp)
+    
+    return {"message": "A new OTP has been sent to your email."}
 
 
 @app.post("/verify-otp")
@@ -123,7 +147,7 @@ def verify_otp(verification_data: schemas.OtpVerification, db: Session = Depends
         raise HTTPException(status_code=404, detail="User not found")
     if not user.otp or user.otp != verification_data.otp:
         raise HTTPException(status_code=400, detail="Invalid or incorrect OTP")
-    if user.otp_expires_at < datetime.utcnow():
+    if user.otp_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="OTP has expired")
 
     crud.verify_user_otp(db, user=user)
@@ -247,11 +271,11 @@ def forward_to_target_url(
 ):
     db_url = crud.get_db_url_by_key(db=db, url_key=url_key)
     if db_url:
-        if db_url.expires_at and datetime.utcnow() > db_url.expires_at:
+        if db_url.expires_at and datetime.now(timezone.utc) > db_url.expires_at:
             crud.deactivate_db_url_by_secret_key(db, db_url.secret_key)
             raise HTTPException(status_code=404, detail="URL not found")
 
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         cache_key = f"{request.client.host}:{url_key}"
 
         # Check if this is a duplicate click
@@ -291,7 +315,7 @@ async def forgot_password(
 
         return {"message": "If an account with that email exists, a password reset link has been sent."}
 
-    if (user & user.auth_provider != 'email'):
+    if user and user.auth_provider != 'email':
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This account was created using a different method. Please use 'Sign in with Google.'"
@@ -300,7 +324,7 @@ async def forgot_password(
     reset_token = auth.create_password_reset_token(data={"sub": user.email})
     crud.set_password_reset_token(db, user=user, token=reset_token)
 
-    reset_link = f"{settings.APP_URL}#/reset-password?token={reset_token}"
+    reset_link = f"{settings.APP_URL}auth/reset-password?token={reset_token}"
 
     background_tasks.add_task(
         email_utils.send_password_reset_email, user.email, reset_link
@@ -321,7 +345,7 @@ def reset_password(payload: schemas.PasswordReset, db: Session = Depends(get_db)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = crud.get_user_by_reset_token(db, token=payload.token)
-    if not user or user.email != email or user.reset_token_expires_at < datetime.utcnow():
+    if not user or user.email != email or user.reset_token_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     crud.update_user_password(db, user=user, new_password=payload.new_password)

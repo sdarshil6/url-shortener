@@ -250,6 +250,15 @@
     color: var(--primary);
 }
 
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+}
+
+.delete-btn:hover .svg-icon {
+    color: #ef4444;
+}
+
 .qr-code-container {
     overflow: hidden;
     padding: 4px;

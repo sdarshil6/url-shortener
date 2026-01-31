@@ -41,7 +41,7 @@ export class CreateLinkComponent {
       };
       
       if (this.linkForm.value.custom_code) {
-        linkData.custom_code = this.linkForm.value.custom_code;
+        linkData.custom_key = this.linkForm.value.custom_code;
       }
       
       this.linkService.createLink(linkData).subscribe({
@@ -51,8 +51,8 @@ export class CreateLinkComponent {
           this.toastService.success('Your link has been created.');
           this.linkForm.reset();
           
-          // Trigger refresh in parent component (link-list)
-          window.dispatchEvent(new Event('linkCreated'));
+          // Notify link-list to refresh via service
+          this.linkService.notifyLinkCreated();
           
           setTimeout(() => {
             this.successMessage = '';

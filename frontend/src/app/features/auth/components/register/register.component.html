@@ -31,6 +31,21 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <app-input
+          formControlName="confirmPassword"
+          type="password"
+          placeholder="Confirm password"
+          [tooltip]="'Re-enter your password'"
+        ></app-input>
+        <div class="error-message" *ngIf="registerForm.get('confirmPassword')?.touched && registerForm.get('confirmPassword')?.errors?.['required']">
+          Please confirm your password
+        </div>
+        <div class="error-message" *ngIf="passwordMismatch">
+          Passwords do not match
+        </div>
+      </div>
+
       <div class="error-message" *ngIf="errorMessage">
         {{ errorMessage }}
       </div>

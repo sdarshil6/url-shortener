@@ -42,6 +42,9 @@
           <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link">
             <span class="svg-icon" style="--url: url('assets/icons/edit.svg'); width: 14px; height: 14px;"></span>
           </button>
+          <button class="delete-btn btn-icon" (click)="deleteLink(link)" title="Delete Link">
+            <span class="svg-icon" style="--url: url('assets/icons/trash.svg'); width: 14px; height: 14px;"></span>
+          </button>
         </div>
       </div>
     </li>
@@ -107,28 +110,28 @@
       </div>
       
       <div class="analytics-grid">
-        <div class="analytics-section" *ngIf="getAnalyticsArray(analytics.devices).length > 0">
+        <div class="analytics-section" *ngIf="analytics.clicks_by_os && analytics.clicks_by_os.length > 0">
           <h3>
             <span class="svg-icon" style="--url: url('assets/icons/smartphone.svg'); width: 14px; height: 14px;"></span>
-            Devices
+            Operating Systems
           </h3>
           <ul class="analytics-list">
-            <li *ngFor="let item of getAnalyticsArray(analytics.devices)">
-              <span class="item-name">{{ item.key }}</span>
-              <span class="item-count">{{ item.value }}</span>
+            <li *ngFor="let item of analytics.clicks_by_os">
+              <span class="item-name">{{ item.item }}</span>
+              <span class="item-count">{{ item.count }}</span>
             </li>
           </ul>
         </div>
         
-        <div class="analytics-section" *ngIf="getAnalyticsArray(analytics.browsers).length > 0">
+        <div class="analytics-section" *ngIf="analytics.clicks_by_browser && analytics.clicks_by_browser.length > 0">
           <h3>
             <span class="svg-icon" style="--url: url('assets/icons/globe.svg'); width: 14px; height: 14px;"></span>
             Browsers
           </h3>
           <ul class="analytics-list">
-            <li *ngFor="let item of getAnalyticsArray(analytics.browsers)">
-              <span class="item-name">{{ item.key }}</span>
-              <span class="item-count">{{ item.value }}</span>
+            <li *ngFor="let item of analytics.clicks_by_browser">
+              <span class="item-name">{{ item.item }}</span>
+              <span class="item-count">{{ item.count }}</span>
             </li>
           </ul>
         </div>

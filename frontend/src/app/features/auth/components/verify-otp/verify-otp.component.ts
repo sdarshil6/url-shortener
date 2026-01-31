@@ -84,12 +84,18 @@ export class VerifyOtpComponent implements OnInit {
     this.errorMessage = '';
     this.successMessage = '';
     
-    // Note: You'll need to add a resendOTP method in AuthService if the API supports it
-    // For now, this is a placeholder
-    setTimeout(() => {
-      this.isResending = false;
-      this.successMessage = 'OTP has been resent to your email.';
-      this.toastService.info('A new verification code has been sent to your email.');
-    }, 1000);
+    this.authService.resendOtp(this.email).subscribe({
+      next: () => {
+        this.isResending = false;
+        this.successMessage = 'A new verification code has been sent to your email.';
+        this.toastService.info('A new verification code has been sent to your email.');
+      },
+      error: (error) => {
+        this.isResending = false;
+        const message = error.error?.detail || 'Failed to resend OTP. Please try again.';
+        this.errorMessage = message;
+        this.toastService.error(message);
+      }
+    });
   }
 }

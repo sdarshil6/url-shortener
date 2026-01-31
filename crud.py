@@ -44,6 +44,14 @@ def verify_user_otp(db: Session, user: models.User):
     return user
 
 
+def update_user_otp(db: Session, user: models.User, otp: str, otp_expires_at):
+    user.otp = otp
+    user.otp_expires_at = otp_expires_at
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def get_db_url_by_key(db: Session, url_key: str) -> models.URL:
     return (
         db.query(models.URL)

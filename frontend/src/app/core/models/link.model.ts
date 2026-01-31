@@ -22,8 +22,9 @@ export interface UpdateLinkRequest {
 export interface LinkAnalytics {
   total_clicks: number;
   unique_clicks: number;
-  devices: { [key: string]: number };
-  browsers: { [key: string]: number };
-  platforms: { [key: string]: number };
-  referrers: { [key: string]: number };
+  top_referrers: { item: string; count: number }[];
+  clicks_by_country: { item: string; count: number }[];
+  clicks_by_browser: { item: string; count: number }[];
+  clicks_by_os: { item: string; count: number }[];
+  click_timeline: { date: string; count: number }[];
 }

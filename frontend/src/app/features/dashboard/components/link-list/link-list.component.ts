@@ -1,6 +1,7 @@
 ﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { Link, LinkAnalytics } from '../../../../core/models/link.model';
@@ -30,7 +31,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   analytics: LinkAnalytics | null = null;
   analyticsLoading = false;
 
-  private linkCreatedListener: any;
+  private linkCreatedSubscription?: Subscription;
 
   constructor(
     private linkService: LinkService,
@@ -45,14 +46,13 @@ export class LinkListComponent implements OnInit, OnDestroy {
     });
     this.loadLinks();
     
-    this.linkCreatedListener = () => this.loadLinks();
-    window.addEventListener('linkCreated', this.linkCreatedListener);
+    this.linkCreatedSubscription = this.linkService.linkCreated$.subscribe(() => {
+      this.loadLinks();
+    });
   }
 
   ngOnDestroy(): void {
-    if (this.linkCreatedListener) {
-      window.removeEventListener('linkCreated', this.linkCreatedListener);
-    }
+    this.linkCreatedSubscription?.unsubscribe();
   }
 
   loadLinks(): void {
@@ -189,6 +189,20 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.showAnalyticsModal = false;
     this.analytics = null;
     this.selectedLink = null;
+  }
+
+  deleteLink(link: Link): void {
+    if (confirm('Are you sure you want to delete this link? This action cannot be undone.')) {
+      this.linkService.deleteLink(link.admin_url).subscribe({
+        next: () => {
+          this.toastService.success('Link deleted successfully.');
+          this.loadLinks();
+        },
+        error: (error) => {
+          this.toastService.error("We couldn't delete the link. Please try again.");
+        }
+      });
+    }
   }
 
   getAnalyticsArray(obj: { [key: string]: number } | undefined | null): { key: string; value: number }[] {

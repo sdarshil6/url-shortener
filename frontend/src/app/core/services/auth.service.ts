@@ -34,27 +34,29 @@ export class AuthService {
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
 
-    return this.http.post<AuthResponse>(`${this.API_URL}/auth/token`, formData).pipe(
+    return this.http.post<AuthResponse>(`${this.API_URL}/token`, formData).pipe(
       tap(response => this.handleAuthentication(response.access_token))
     );
   }
 
   register(data: RegisterRequest): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.API_URL}/auth/register`, data);
+    return this.http.post<{ message: string }>(`${this.API_URL}/users`, data);
   }
 
-  verifyOTP(data: OTPVerifyRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.API_URL}/auth/verify-otp`, data).pipe(
-      tap(response => this.handleAuthentication(response.access_token))
-    );
+  verifyOTP(data: OTPVerifyRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.API_URL}/verify-otp`, data);
   }
 
-  forgotPassword(data: ForgotPasswordRequest): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.API_URL}/auth/forgot-password`, data);
+  forgotPassword(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.API_URL}/forgot-password`, { email });
   }
 
   resetPassword(data: ResetPasswordRequest): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.API_URL}/auth/reset-password`, data);
+    return this.http.post<{ message: string }>(`${this.API_URL}/reset-password`, data);
+  }
+
+  resendOtp(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.API_URL}/resend-otp`, { email });
   }
 
   logout(): void {
@@ -73,7 +75,21 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    if (!token) return false;
+    
+    // Check if token is expired
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      return Date.now() < exp;
+    } catch {
+      return false;
+    }
+  }
+
+  handleAuthenticationPublic(token: string): void {
+    this.handleAuthentication(token);
   }
 
   private handleAuthentication(token: string): void {

@@ -42,29 +42,15 @@ export class LoginComponent implements OnInit {
     this.route.queryParams.subscribe(params => {
       const token = params['token'];
       if (token) {
-        // Find handleAuthentication in authService to see if it exposes a public method for this, 
-        // or just manually set it. AuthService has handleAuthentication private.
-        // But login() calls it. 
-        // We can manually set it or expose a method. 
-        // For now, let's manually set it in localStorage here if handleAuthentication is private, 
-        // BUT wait, authService logic is encapsulated. Checking auth.service.ts...
-        // handleAuthentication is private.
-        // We should probably rely on AuthService to handle the session.
-        // But since we can't change AuthService easily without another edit, let's use localStorage directly here
-        // matching the key in AuthService (which is 'accessToken').
-        // Actually, let's do it cleanly by editing AuthService if needed, or just hacking it here matching likely implementation.
-        // AuthService uses private readonly TOKEN_KEY = 'accessToken';
-        
-        localStorage.setItem('accessToken', token); 
-        // Force refresh of auth state if subject is used
-        // Since we can't easily access the subject, we might need to reload or just navigate.
-        // Navigating to dashboard should trigger AuthGuard which checks localStorage.
+        this.authService.handleAuthenticationPublic(token);
+        this.toastService.success('Welcome! You have been signed in with Google.');
         this.router.navigate(['/dashboard']);
       }
       
       const error = params['error'];
       if (error) {
         this.errorMessage = 'Authentication failed: ' + error;
+        this.toastService.error('Google authentication failed. Please try again.');
       }
     });
   }
