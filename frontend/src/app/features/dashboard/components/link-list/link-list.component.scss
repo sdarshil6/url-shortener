@@ -15,3 +15,17 @@
 svg.loading {
   animation: spin 1s linear infinite;
 }
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  
+  p {
+    font-size: 0.875rem; 
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.8;
+  }
+}

@@ -11,9 +11,9 @@
   </div>
   
   <ul class="links-list">
-    <p *ngIf="links.length === 0 && !loading" style="color: var(--text-secondary);">
-      Your dashboard is empty. Create a link on the left to get started!
-    </p>
+    <div *ngIf="links.length === 0 && !loading" class="empty-state">
+      <p>No links present</p>
+    </div>
     
     <li *ngFor="let link of links" class="link-card fade-in">
       <div class="link-header">
