@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -21,6 +22,7 @@ export class ResetPasswordComponent implements OnInit {
   successMessage = '';
   isLoading = false;
   token = '';
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private fb: FormBuilder,
@@ -46,14 +48,22 @@ export class ResetPasswordComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
-      this.token = params['token'] || '';
-      
-      if (!this.token) {
-        this.errorMessage = 'Invalid or missing reset token.';
-        this.toastService.error('The reset link is invalid or has expired.');
-      }
-    });
+    // Use URL fragment instead of query param for security
+    const fragment = this.route.snapshot.fragment;
+    if (fragment) {
+      const params = new URLSearchParams(fragment);
+      this.token = params.get('token') || '';
+    }
+    
+    if (!this.token) {
+      this.errorMessage = 'Invalid or missing reset token.';
+      this.toastService.error('The reset link is invalid or has expired.');
+    }
+    
+    // Clear token from URL after reading it
+    if (this.token) {
+      this.router.navigate([], { replaceUrl: true, fragment: undefined });
+    }
   }
 
   onSubmit() {
@@ -64,7 +74,9 @@ export class ResetPasswordComponent implements OnInit {
       
       const { password } = this.resetForm.value;
       
-      this.authService.resetPassword({ token: this.token, new_password: password }).subscribe({
+      this.authService.resetPassword({ token: this.token, new_password: password }).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset successfully! Redirecting to login...';

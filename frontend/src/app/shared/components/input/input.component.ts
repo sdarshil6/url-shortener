@@ -26,11 +26,11 @@ export class InputComponent implements ControlValueAccessor, OnInit {
   @Input() disabled = false;
   @Input() tooltip = '';
   @Input() maxlength: number | null = null;
+  @Input() autocomplete = ''; // Allow parent to specify autocomplete value
   @Output() valueChange = new EventEmitter<string>();
 
   value = '';
   iconSvg: SafeHtml = '';
-  isReadOnly = true; // Start as readonly to prevent autofill
   
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
@@ -44,11 +44,24 @@ export class InputComponent implements ControlValueAccessor, OnInit {
   }
 
   get autocompleteValue(): string {
-    return this.type === 'password' ? 'new-password' : 'off';
-  }
-
-  onFocus() {
-    this.isReadOnly = false;
+    // If autocomplete is explicitly set, use it
+    if (this.autocomplete) {
+      return this.autocomplete;
+    }
+    
+    // Provide sensible defaults based on input type
+    switch (this.type) {
+      case 'email':
+        return 'email';
+      case 'password':
+        return 'current-password';
+      case 'url':
+        return 'url';
+      case 'tel':
+        return 'tel';
+      default:
+        return 'on'; // Let browser decide
+    }
   }
 
   writeValue(value: string): void {

@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -20,6 +21,7 @@ export class RegisterComponent {
   errorMessage = '';
   isLoading = false;
   googleLoginUrl = '';
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private fb: FormBuilder,
@@ -52,7 +54,9 @@ export class RegisterComponent {
       
       const { email, password } = this.registerForm.value;
       
-      this.authService.register({ username: email, email, password }).subscribe({
+      this.authService.register({ username: email, email, password }).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: () => {
           this.isLoading = false;
           this.toastService.success('Account created. Please check your email to verify.');

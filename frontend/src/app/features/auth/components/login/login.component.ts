@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, DestroyRef, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -22,6 +23,8 @@ export class LoginComponent implements OnInit {
   errorMessage = '';
   appName = environment.appName;
   googleLoginUrl = '';
+  private destroyRef = inject(DestroyRef);
+  private platformId = inject(PLATFORM_ID);
 
   constructor(
     private fb: FormBuilder,
@@ -38,22 +41,50 @@ export class LoginComponent implements OnInit {
     });
     this.googleLoginUrl = this.authService.getGoogleLoginUrl();
 
-    // Check for token from Google Auth redirect
-    const token = this.route.snapshot.queryParamMap.get('token');
-    const error = this.route.snapshot.queryParamMap.get('error');
-    
-    if (token) {
-      this.authService.handleAuthenticationPublic(token);
-      this.toastService.success('Welcome! You have been signed in with Google.');
-      // Navigate without query params
-      setTimeout(() => {
-        this.router.navigate(['/dashboard'], { replaceUrl: true });
-      }, 100);
-    } else if (error) {
-      this.errorMessage = 'Authentication failed: ' + error;
-      this.toastService.error('Google authentication failed. Please try again.');
-      // Clear error from URL
-      this.router.navigate(['/auth/login'], { replaceUrl: true });
+    // Check for token from Google Auth redirect (using URL fragment for security)
+    // Only process fragments in browser context (SSR compatibility)
+    if (isPlatformBrowser(this.platformId)) {
+      const fragment = this.route.snapshot.fragment;
+      if (fragment) {
+        const params = new URLSearchParams(fragment);
+        const token = params.get('token');
+        const error = params.get('error');
+        
+        if (token) {
+          this.authService.handleAuthenticationPublic(token);
+          this.toastService.success('Welcome! You have been signed in with Google.');
+          // Use setTimeout to ensure localStorage write completes before navigation
+          // This prevents race condition where auth guard checks before token is stored
+          setTimeout(() => {
+            this.router.navigate(['/dashboard'], { replaceUrl: true });
+          }, 0);
+        } else if (error) {
+          // Handle specific error codes from backend
+          let errorMessage = 'Google authentication failed. Please try again.';
+          
+          switch (error) {
+            case 'EMAIL_NOT_VERIFIED':
+              errorMessage = 'Please verify your email with Google before signing in.';
+              break;
+            case 'AUTH_PROVIDER_MISMATCH':
+              errorMessage = 'An account with this email already exists. Please sign in with your password.';
+              break;
+            case 'CSRF_VALIDATION_FAILED':
+              errorMessage = 'Security validation failed. Please try signing in again.';
+              break;
+            case 'GOOGLE_AUTH_FAILED':
+              errorMessage = 'Google authentication failed. Please try again.';
+              break;
+            default:
+              errorMessage = `Authentication failed: ${error}`;
+          }
+          
+          this.errorMessage = errorMessage;
+          this.toastService.error(errorMessage);
+          // Clear error from URL
+          this.router.navigate(['/auth/login'], { replaceUrl: true });
+        }
+      }
     }
   }
 
@@ -62,7 +93,9 @@ export class LoginComponent implements OnInit {
       this.loading = true;
       this.errorMessage = '';
 
-      this.authService.login(this.loginForm.value).subscribe({
+      this.authService.login(this.loginForm.value).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: () => {
           this.toastService.success('Welcome back! You are now signed in.');
           this.router.navigate(['/dashboard']);

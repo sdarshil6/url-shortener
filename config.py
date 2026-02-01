@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     APP_URL: str
+    FRONTEND_URL: str
     ALLOW_INSECURE_HTTP: bool
     CLICK_DEDUPLICATION_WINDOW_SECONDS: int
     RAZORPAY_KEY_ID: str

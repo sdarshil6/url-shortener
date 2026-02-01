@@ -11,10 +11,10 @@ This application has evolved into a comprehensive platform with a focus on secur
 ### Authentication & Security
 
 - **Secure Email & Password Authentication**: Standard registration flow is protected with strong password validation (length, complexity) and an email-based One-Time Password (OTP) verification system to ensure valid user accounts.
-- **Social Login (Sign in with Google)**: Offers a seamless and secure one-click registration and login option using Google's OAuth 2.0 protocol.
+- **Social Login (Sign in with Google)**: Offers a seamless and secure one-click registration and login option using Google's OAuth 2.0 protocol with CSRF protection via state parameter validation.
 - **Isolated Authentication Methods**: A robust security rule prevents account takeovers by disallowing a user from signing in with Google if their account was created with an email/password, and vice-versa.
-- **Token-Based Security (JWT)**: All user sessions and protected API actions are secured using industry-standard JSON Web Tokens.
-- **API Rate Limiting**: Protects against brute-force attacks and service abuse by limiting the number of requests for sensitive endpoints like login and registration.
+- **Token-Based Security (JWT)**: All user sessions and protected API actions are secured using industry-standard JSON Web Tokens, delivered via URL fragments (not query parameters) to prevent logging in browser history.
+- **API Rate Limiting**: Protects against brute-force attacks and service abuse by limiting the number of requests for sensitive endpoints like login, registration, and OAuth endpoints (10-20 requests/minute).
 
 ### Link Management & Analytics
 

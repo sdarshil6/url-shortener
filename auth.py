@@ -6,6 +6,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from fastapi_sso.sso.google import GoogleSSO
 from typing import Optional
+import secrets
 import crud
 import models
 import schemas
@@ -18,6 +19,11 @@ logger = get_logger(__name__)
 audit_logger = get_logger('audit')
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth state parameter storage (in-memory for CSRF protection)
+# In production, use Redis or database-backed session store
+oauth_states = {}  # {state: (timestamp, ip_address)}
+OAUTH_STATE_EXPIRY_MINUTES = 15
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -161,3 +167,55 @@ def log_auth_event(
             f"Auth event failed: {event_type}",
             extra={'extra_data': log_data}
         )
+
+
+def generate_oauth_state(ip_address: str) -> str:
+    """Generate a cryptographically secure state parameter for OAuth CSRF protection."""
+    state = secrets.token_urlsafe(32)
+    oauth_states[state] = (datetime.utcnow(), ip_address)
+    
+    # Clean up expired states
+    cleanup_expired_oauth_states()
+    
+    logger.debug(f"OAuth state generated", extra={'extra_data': {'state_prefix': state[:8], 'ip': ip_address}})
+    return state
+
+
+def validate_oauth_state(state: str, ip_address: str) -> bool:
+    """Validate OAuth state parameter to prevent CSRF attacks."""
+    if not state or state not in oauth_states:
+        logger.warning(f"Invalid OAuth state parameter", extra={'extra_data': {'state_prefix': state[:8] if state else 'None', 'ip': ip_address}})
+        return False
+    
+    timestamp, stored_ip = oauth_states[state]
+    
+    # Check if state is expired
+    if datetime.utcnow() - timestamp > timedelta(minutes=OAUTH_STATE_EXPIRY_MINUTES):
+        logger.warning(f"Expired OAuth state parameter", extra={'extra_data': {'state_prefix': state[:8], 'ip': ip_address}})
+        del oauth_states[state]
+        return False
+    
+    # Optional: Verify IP address matches (can be relaxed for mobile users)
+    # if stored_ip != ip_address:
+    #     logger.warning(f"OAuth state IP mismatch", extra={'extra_data': {'stored_ip': stored_ip, 'current_ip': ip_address}})
+    #     return False
+    
+    # State is valid, remove it (one-time use)
+    del oauth_states[state]
+    logger.debug(f"OAuth state validated successfully", extra={'extra_data': {'state_prefix': state[:8], 'ip': ip_address}})
+    return True
+
+
+def cleanup_expired_oauth_states():
+    """Remove expired OAuth states from memory."""
+    now = datetime.utcnow()
+    expired_states = [
+        state for state, (timestamp, _) in oauth_states.items()
+        if now - timestamp > timedelta(minutes=OAUTH_STATE_EXPIRY_MINUTES)
+    ]
+    
+    for state in expired_states:
+        del oauth_states[state]
+    
+    if expired_states:
+        logger.debug(f"Cleaned up expired OAuth states", extra={'extra_data': {'count': len(expired_states)}})

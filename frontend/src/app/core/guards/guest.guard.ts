@@ -14,6 +14,13 @@ export const guestGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
+  // Check URL fragment FIRST before checking authentication
+  // This allows login component to process OAuth callback tokens
+  const fragment = window.location.hash.substring(1);
+  if (fragment && (fragment.includes('token=') || fragment.includes('error='))) {
+    return true; // Allow component to handle token
+  }
+
   // Allow access to login page if there's a token query param (Google OAuth callback)
   if (currentUrl.includes('token=') || currentUrl.includes('error=')) {
     return true;

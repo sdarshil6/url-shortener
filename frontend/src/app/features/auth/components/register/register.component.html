@@ -11,6 +11,7 @@
           type="email"
           placeholder="Email address"
           [tooltip]="'Email address'"
+          autocomplete="email"
         ></app-input>
         <div class="error-message" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
           <span *ngIf="registerForm.get('email')?.errors?.['required']">Email is required</span>
@@ -24,6 +25,7 @@
           type="password"
           placeholder="Password"
           [tooltip]="'Password (min 8 chars)'"
+          autocomplete="new-password"
         ></app-input>
         <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
           <span *ngIf="registerForm.get('password')?.errors?.['required']">Password is required</span>
@@ -37,6 +39,7 @@
           type="password"
           placeholder="Confirm password"
           [tooltip]="'Re-enter your password'"
+          autocomplete="new-password"
         ></app-input>
         <div class="error-message" *ngIf="registerForm.get('confirmPassword')?.touched && registerForm.get('confirmPassword')?.errors?.['required']">
           Please confirm your password

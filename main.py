@@ -45,8 +45,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://localhost:4200', 'http://127.0.0.1:4200'],
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+    allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allow_headers=['Content-Type', 'Authorization', 'X-Correlation-ID'],
 )
 
 
@@ -645,10 +645,14 @@ def reset_password(request: Request, payload: schemas.PasswordReset, db: Session
 
 
 @app.get("/auth/google/login")
+@limiter.limit("10/minute")
 async def google_login(request: Request):
     """Generate login url and redirect."""
     ip_address = request.client.host if request.client else 'unknown'
     user_agent = request.headers.get('user-agent', 'unknown')
+    
+    # Generate and store OAuth state for CSRF protection
+    state = auth.generate_oauth_state(ip_address)
     
     auth.log_auth_event(
         event_type='google_login_initiated',
@@ -656,14 +660,28 @@ async def google_login(request: Request):
         ip_address=ip_address,
         user_agent=user_agent
     )
-    return await auth.google_sso.get_login_redirect()
+    return await auth.google_sso.get_login_redirect(state=state)
 
 
 @app.get("/auth/google/callback")
+@limiter.limit("20/minute")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Process login response from Google and return user token."""
     ip_address = request.client.host if request.client else 'unknown'
     user_agent = request.headers.get('user-agent', 'unknown')
+    
+    # Validate state parameter for CSRF protection
+    state = request.query_params.get('state')
+    if not auth.validate_oauth_state(state, ip_address):
+        auth.log_auth_event(
+            event_type='google_callback',
+            success=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            reason='invalid_state_parameter'
+        )
+        frontend_url = settings.FRONTEND_URL.rstrip('/')
+        return RedirectResponse(url=f"{frontend_url}/auth/login#error=CSRF_VALIDATION_FAILED")
     
     try:
 
@@ -680,6 +698,21 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
             raise HTTPException(
                 status_code=400, detail="Could not retrieve user info from Google")
+        
+        # Verify email is verified by Google
+        if not getattr(sso_user, 'verified_email', True):
+            auth.log_auth_event(
+                event_type='google_callback',
+                success=False,
+                email=sso_user.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                reason='unverified_google_email'
+            )
+            raise HTTPException(
+                status_code=400, 
+                detail="EMAIL_NOT_VERIFIED: Please verify your email with Google first."
+            )
 
         user = crud.get_user_by_email(db, email=sso_user.email)
 
@@ -696,21 +729,36 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"An account with email {user.email} already exists. Please log in with your password."
+                    detail="AUTH_PROVIDER_MISMATCH: An account with this email already exists. Please log in with your password."
                 )
         else:
+            # Create new user with race condition protection
             new_user_data = schemas.UserCreate(
                 email=sso_user.email, password=None)
-            user = crud.create_user(
-                db, user=new_user_data, is_verified=True, auth_provider='google')
-            auth.log_auth_event(
-                event_type='google_registration',
-                success=True,
-                email=sso_user.email,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                extra_data={'user_id': user.id}
-            )
+            try:
+                user = crud.create_user(
+                    db, user=new_user_data, is_verified=True, auth_provider='google')
+                auth.log_auth_event(
+                    event_type='google_registration',
+                    success=True,
+                    email=sso_user.email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    extra_data={'user_id': user.id}
+                )
+            except crud.DatabaseError as e:
+                # Handle race condition - user was created by parallel request
+                if 'integrity' in str(e).lower():
+                    logger.info(f"Race condition detected during user creation, fetching existing user", 
+                               extra={'extra_data': {'email': sso_user.email}})
+                    user = crud.get_user_by_email(db, email=sso_user.email)
+                    if not user:
+                        raise HTTPException(
+                            status_code=500,
+                            detail="USER_CREATION_FAILED: Failed to create or retrieve user account."
+                        )
+                else:
+                    raise
 
         access_token = auth.create_access_token(data={"sub": user.email})
         
@@ -723,12 +771,11 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             extra_data={'user_id': user.id}
         )
 
-        # Redirect to frontend with token
-        frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
-        if not frontend_url.endswith('/'):
-             frontend_url += '/'
+        # Redirect to frontend with token in URL fragment (not query parameter)
+        # URL fragments are not logged in browser history or sent to servers
+        frontend_url = settings.FRONTEND_URL.rstrip('/')
         return RedirectResponse(
-            url=f"{frontend_url}auth/login?token={access_token}"
+            url=f"{frontend_url}/auth/login#token={access_token}"
         )
     except HTTPException:
         raise
@@ -742,10 +789,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             extra_data={'error': str(e)}
         )
         logger.error(f"Failed to authenticate with Google", extra={'extra_data': {'error': str(e)}}, exc_info=True)
-        frontend_url = settings.APP_URL.replace(':8000', ':4200') if ':8000' in settings.APP_URL else settings.APP_URL
-        if not frontend_url.endswith('/'):
-             frontend_url += '/'
-        return RedirectResponse(url=f"{frontend_url}auth/login?error=GoogleAuthFailed")
+        frontend_url = settings.FRONTEND_URL.rstrip('/')
+        error_code = "GOOGLE_AUTH_FAILED"
+        return RedirectResponse(url=f"{frontend_url}/auth/login#error={error_code}")
 
 
 @app.get("/admin/{secret_key}/analytics", response_model=schemas.AnalyticsData)

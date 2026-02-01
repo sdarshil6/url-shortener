@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -20,6 +21,7 @@ export class ForgotPasswordComponent {
   errorMessage = '';
   successMessage = '';
   isLoading = false;
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private fb: FormBuilder,
@@ -39,7 +41,9 @@ export class ForgotPasswordComponent {
       
       const { email } = this.forgotForm.value;
       
-      this.authService.forgotPassword(email).subscribe({
+      this.authService.forgotPassword(email).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: () => {
           this.isLoading = false;
           this.successMessage = 'Password reset link has been sent to your email. Please check your inbox.';

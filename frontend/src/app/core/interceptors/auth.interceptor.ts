@@ -138,10 +138,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       
       // Handle specific status codes
       if (error.status === 401) {
-        // Token expired or invalid
-        authService.logout();
+        // Token expired or invalid - only logout if we had a valid token
+        if (authService.isAuthenticated()) {
+          authService.logout();
+          toastService.error('Your session has expired. Please log in again.');
+        }
         router.navigate(['/auth/login']);
-        toastService.error('Your session has expired. Please log in again.');
       } else if (error.status === 429) {
         toastService.error('Too many requests. Please wait a moment and try again.');
       } else if (error.status === 0) {

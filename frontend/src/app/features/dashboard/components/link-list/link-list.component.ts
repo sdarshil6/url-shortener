@@ -1,18 +1,19 @@
 ﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subscription, Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { Link, LinkAnalytics, LinkQueryParams } from '../../../../core/models/link.model';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
+import { SkeletonLoaderComponent } from '../../../../shared/components/skeleton-loader/skeleton-loader.component';
 
 @Component({
   selector: 'app-link-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, ModalComponent, ButtonComponent, InputComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ModalComponent, ButtonComponent, InputComponent, SkeletonLoaderComponent],
   templateUrl: './link-list.component.html',
   styleUrls: ['./link-list.component.scss']
 })
@@ -46,6 +47,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   private linkCreatedSubscription?: Subscription;
   private searchSubscription?: Subscription;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private linkService: LinkService,
@@ -80,6 +82,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.linkCreatedSubscription?.unsubscribe();
     this.searchSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadLinks(): void {
@@ -100,7 +104,9 @@ export class LinkListComponent implements OnInit, OnDestroy {
       queryParams.filter_status = this.filterStatus;
     }
 
-    this.linkService.getUserLinksPaginated(queryParams).subscribe({
+    this.linkService.getUserLinksPaginated(queryParams).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (response) => {
         this.links = response.items;
         this.totalItems = response.total;
@@ -111,7 +117,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         this.loading = false;
-        this.toastService.error("We couldn't load your links. Please try again.");
+        const errorMessage = this.getErrorMessage(error, 'load your links');
+        this.toastService.error(errorMessage);
         this.cdr.detectChanges();
       }
     });
@@ -272,7 +279,9 @@ export class LinkListComponent implements OnInit, OnDestroy {
       this.linkService.updateLink({
         secret_key: this.selectedLink.admin_url,
         target_url: this.editForm.value.target_url
-      }).subscribe({
+      }).pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
         next: () => {
           this.editLoading = false;
           this.toastService.success('Your link has been updated.');
@@ -281,7 +290,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           this.editLoading = false;
-          this.toastService.error("We couldn't update your link. Please try again.");
+          const errorMessage = this.getErrorMessage(error, 'update your link');
+          this.toastService.error(errorMessage);
         }
       });
     }
@@ -296,7 +306,9 @@ export class LinkListComponent implements OnInit, OnDestroy {
     });
 
     // Use admin_url (secret_key) for analytics
-    this.linkService.getAnalytics(link.admin_url).subscribe({
+    this.linkService.getAnalytics(link.admin_url).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (data) => {
         this.analytics = data;
         this.analyticsLoading = false;
@@ -306,7 +318,8 @@ export class LinkListComponent implements OnInit, OnDestroy {
         // Ensure state update happens in next tick to avoid NG0100
         setTimeout(() => {
           this.analyticsLoading = false;
-          this.toastService.error("We couldn't load analytics for this link.");
+          const errorMessage = this.getErrorMessage(error, 'load analytics');
+          this.toastService.error(errorMessage);
           this.closeAnalyticsModal();
           this.cdr.detectChanges();
         });
@@ -322,13 +335,16 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   deleteLink(link: Link): void {
     if (confirm('Are you sure you want to delete this link? This action cannot be undone.')) {
-      this.linkService.deleteLink(link.admin_url).subscribe({
+      this.linkService.deleteLink(link.admin_url).pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
         next: () => {
           this.toastService.success('Link deleted successfully.');
           this.loadLinks();
         },
         error: (error) => {
-          this.toastService.error("We couldn't delete the link. Please try again.");
+          const errorMessage = this.getErrorMessage(error, 'delete the link');
+          this.toastService.error(errorMessage);
         }
       });
     }
@@ -337,5 +353,33 @@ export class LinkListComponent implements OnInit, OnDestroy {
   getAnalyticsArray(obj: { [key: string]: number } | undefined | null): { key: string; value: number }[] {
     if (!obj) return [];
     return Object.entries(obj).map(([key, value]) => ({ key, value }));
+  }
+
+  private getErrorMessage(error: any, action: string): string {
+    if (error.status === 0) {
+      return `Network error. Please check your connection and try to ${action} again.`;
+    }
+    if (error.status === 401) {
+      return `Your session has expired. Please log in again.`;
+    }
+    if (error.status === 403) {
+      return `You don't have permission to ${action}.`;
+    }
+    if (error.status === 404) {
+      return `The requested resource was not found. Please refresh and try again.`;
+    }
+    if (error.status === 429) {
+      return `Too many requests. Please wait a moment before trying to ${action} again.`;
+    }
+    if (error.status >= 500) {
+      return `Server error. Our team has been notified. Please try to ${action} later.`;
+    }
+    
+    const message = error.error?.detail || error.error?.message;
+    if (message) {
+      return message;
+    }
+    
+    return `Unable to ${action}. Please try again or contact support if the issue persists.`;
   }
 }

@@ -8,7 +8,7 @@
         placeholder="https://example.com/very-long-url"
         [tooltip]="'Destination URL'"
       ></app-input>
-      <div class="error-message" *ngIf="linkForm.get('target_url')?.invalid && linkForm.get('target_url')?.touched">
+      <div class="error-message" *ngIf="linkForm.get('target_url')?.invalid && (linkForm.get('target_url')?.touched || showAllErrors)">
         <span *ngIf="linkForm.get('target_url')?.errors?.['required']">URL is required</span>
         <span *ngIf="linkForm.get('target_url')?.errors?.['pattern']">Please enter a valid URL (starting with http:// or https://)</span>
       </div>
@@ -22,7 +22,7 @@
         placeholder="my-custom-code"
         [tooltip]="'Custom short code'"
       ></app-input>
-      <div class="error-message" *ngIf="linkForm.get('custom_code')?.invalid && linkForm.get('custom_code')?.touched">
+      <div class="error-message" *ngIf="linkForm.get('custom_code')?.invalid && (linkForm.get('custom_code')?.touched || showAllErrors)">
         <span *ngIf="linkForm.get('custom_code')?.errors?.['pattern']">Only letters, numbers, dashes and underscores allowed</span>
       </div>
     </div>
@@ -34,7 +34,11 @@
         type="datetime-local"
         class="date-input"
         placeholder="Select expiry date"
+        [min]="minDate"
       />
+      <div class="error-message" *ngIf="linkForm.get('expires_at')?.invalid && (linkForm.get('expires_at')?.touched || showAllErrors)">
+        <span *ngIf="linkForm.get('expires_at')?.errors?.['pastDate']">Expiry date must be in the future</span>
+      </div>
       <div class="help-text">Leave empty for permanent link</div>
     </div>
 

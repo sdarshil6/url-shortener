@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -18,17 +19,32 @@ export class CreateLinkComponent {
   errorMessage = '';
   successMessage = '';
   isLoading = false;
+  minDate: string;
+  showAllErrors = false;
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private fb: FormBuilder,
     private linkService: LinkService,
     private toastService: ToastService
   ) {
+    // Set minimum date to current time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    this.minDate = now.toISOString().slice(0, 16);
+
     this.linkForm = this.fb.group({
       target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
       custom_code: ['', [Validators.pattern(/^[a-zA-Z0-9_-]*$/)]],
-      expires_at: ['', []]
+      expires_at: ['', [this.futureDateValidator]]
     });
+  }
+
+  private futureDateValidator(control: AbstractControl): ValidationErrors | null {
+    if (!control.value) return null;
+    const selectedDate = new Date(control.value);
+    const now = new Date();
+    return selectedDate > now ? null : { pastDate: true };
   }
 
   onSubmit() {
@@ -36,6 +52,7 @@ export class CreateLinkComponent {
       this.isLoading = true;
       this.errorMessage = '';
       this.successMessage = '';
+      this.showAllErrors = false;
       
       const linkData: any = {
         target_url: this.linkForm.value.target_url
@@ -49,7 +66,9 @@ export class CreateLinkComponent {
         linkData.expires_at = new Date(this.linkForm.value.expires_at).toISOString();
       }
       
-      this.linkService.createLink(linkData).subscribe({
+      this.linkService.createLink(linkData).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe({
         next: (response) => {
           this.isLoading = false;
           this.successMessage = 'Your link has been created.';
@@ -70,6 +89,13 @@ export class CreateLinkComponent {
           this.toastService.error(message);
         }
       });
+    } else {
+      // Mark all fields as touched to show errors
+      this.showAllErrors = true;
+      Object.keys(this.linkForm.controls).forEach(key => {
+        this.linkForm.get(key)?.markAsTouched();
+      });
+      this.toastService.error('Please fix the errors before submitting.');
     }
   }
 

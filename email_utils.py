@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from pydantic import SecretStr
 from config import settings
 from logging_config import get_logger
 
@@ -26,10 +27,13 @@ class EmailResult:
     attempts: int = 1
 
 
-# Configure FastMail
+# Rebuild the ConnectionConfig model to ensure all types are resolved
+ConnectionConfig.model_rebuild()
+
+# Configure FastMail with SecretStr for sensitive data
 conf = ConnectionConfig(
     MAIL_USERNAME=settings.MAIL_USERNAME,
-    MAIL_PASSWORD=settings.MAIL_PASSWORD,
+    MAIL_PASSWORD=SecretStr(settings.MAIL_PASSWORD),
     MAIL_FROM=settings.MAIL_FROM,
     MAIL_PORT=settings.MAIL_PORT,
     MAIL_SERVER=settings.MAIL_SERVER,

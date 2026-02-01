@@ -14,47 +14,48 @@
   <!-- Search and Filters -->
   <div class="controls-bar">
     <div class="search-box">
-      <span class="svg-icon search-icon" style="--url: url('assets/icons/search.svg');"></span>
+      <span class="svg-icon search-icon" style="--url: url('assets/icons/search.svg');" aria-hidden="true"></span>
       <input 
         type="text" 
         placeholder="Search by URL or short code..." 
         [(ngModel)]="searchQuery"
         (input)="onSearchInput($any($event.target).value)"
         class="search-input"
+        aria-label="Search links by URL or short code"
       />
     </div>
 
     <div class="filter-controls">
       <div class="filter-group">
-        <label class="filter-label">Sort:</label>
-        <select [(ngModel)]="sortBy" (change)="onSortChange(sortBy)" class="filter-select">
+        <label for="sort-select" class="filter-label">Sort:</label>
+        <select id="sort-select" [(ngModel)]="sortBy" (change)="onSortChange(sortBy)" class="filter-select" aria-label="Sort links by">
           <option value="created_at">Date</option>
           <option value="clicks">Clicks</option>
           <option value="expires_at">Expiry</option>
         </select>
-        <button class="sort-order-btn" (click)="onSortChange(sortBy)" [title]="sortOrder === 'asc' ? 'Ascending' : 'Descending'">
-          <span class="svg-icon" [style.--url]="sortOrder === 'asc' ? 'url(\'assets/icons/arrow-up.svg\')' : 'url(\'assets/icons/arrow-down.svg\')'"></span>
+        <button class="sort-order-btn" (click)="onSortChange(sortBy)" [attr.aria-label]="sortOrder === 'asc' ? 'Sort ascending' : 'Sort descending'" [title]="sortOrder === 'asc' ? 'Ascending' : 'Descending'">
+          <span class="svg-icon" [style.--url]="sortOrder === 'asc' ? 'url(\'assets/icons/arrow-up.svg\')' : 'url(\'assets/icons/arrow-down.svg\')'" aria-hidden="true"></span>
         </button>
       </div>
 
       <div class="filter-group">
-        <label class="filter-label">Filter:</label>
-        <select [(ngModel)]="filterStatus" (change)="onFilterChange(filterStatus)" class="filter-select">
+        <label for="filter-select" class="filter-label">Filter:</label>
+        <select id="filter-select" [(ngModel)]="filterStatus" (change)="onFilterChange(filterStatus)" class="filter-select" aria-label="Filter links by status">
           <option [ngValue]="null">All</option>
           <option value="active">Active</option>
           <option value="expired">Expired</option>
         </select>
       </div>
 
-      <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="searchQuery || filterStatus" title="Clear filters">
-        <span class="svg-icon" style="--url: url('assets/icons/x.svg');"></span>
+      <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="searchQuery || filterStatus" title="Clear filters" aria-label="Clear all filters">
+        <span class="svg-icon" style="--url: url('assets/icons/x.svg');" aria-hidden="true"></span>
       </button>
     </div>
   </div>
   
-  <!-- Loading State -->
-  <div *ngIf="loading" class="loader-container">
-    <div class="loader"></div>
+  <!-- Loading State with Skeleton Loaders -->
+  <div *ngIf="loading" class="skeleton-list" role="status" aria-live="polite" aria-label="Loading links">
+    <app-skeleton-loader *ngFor="let i of [1,2,3,4,5]" type="card"></app-skeleton-loader>
   </div>
 
   <!-- Links List -->
@@ -69,8 +70,8 @@
         <div class="short-url">
           <a [href]="getShortUrl(link.url)" target="_blank" [title]="getShortUrl(link.url)">{{ getDisplayUrl(link.url) }}</a>
         </div>
-        <button class="copy-btn btn-icon" (click)="copyToClipboard(link.url)" title="Copy short link">
-          <span class="svg-icon" style="--url: url('assets/icons/copy.svg');"></span>
+        <button class="copy-btn btn-icon" (click)="copyToClipboard(link.url)" title="Copy short link" aria-label="Copy short link to clipboard">
+          <span class="svg-icon" style="--url: url('assets/icons/copy.svg');" aria-hidden="true"></span>
         </button>
       </div>
       
@@ -82,17 +83,17 @@
           <span title="Link expiration">Exp: <strong>{{ getExpirationDisplay(link.expires_at) }}</strong></span>
         </div>
         <div class="link-actions">
-          <div class="qr-code-container" (click)="openQRModal(link)" title="View QR Code">
+          <div class="qr-code-container" (click)="openQRModal(link)" title="View QR Code" role="button" tabindex="0" (keydown.enter)="openQRModal(link)" (keydown.space)="openQRModal(link); $event.preventDefault()" aria-label="View QR code for this link">
             <img [src]="link.qr_code" alt="QR Code" class="qr-code-img" />
           </div>
-          <button class="analytics-btn btn-icon" (click)="openAnalytics(link)" title="View Analytics">
-            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg');"></span>
+          <button class="analytics-btn btn-icon" (click)="openAnalytics(link)" title="View Analytics" aria-label="View analytics for this link">
+            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg');" aria-hidden="true"></span>
           </button>
-          <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link">
-            <span class="svg-icon" style="--url: url('assets/icons/edit.svg');"></span>
+          <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link" aria-label="Edit this link">
+            <span class="svg-icon" style="--url: url('assets/icons/edit.svg');" aria-hidden="true"></span>
           </button>
-          <button class="delete-btn btn-icon" (click)="deleteLink(link)" title="Delete Link">
-            <span class="svg-icon" style="--url: url('assets/icons/trash.svg');"></span>
+          <button class="delete-btn btn-icon" (click)="deleteLink(link)" title="Delete Link" aria-label="Delete this link">
+            <span class="svg-icon" style="--url: url('assets/icons/trash.svg');" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -100,14 +101,15 @@
   </ul>
 
   <!-- Pagination -->
-  <div class="pagination" *ngIf="!loading && totalPages > 1">
+  <div class="pagination" *ngIf="!loading && totalPages > 1" role="navigation" aria-label="Pagination navigation">
     <button 
       class="pagination-btn" 
       (click)="previousPage()" 
       [disabled]="currentPage === 1"
       title="Previous page"
+      aria-label="Go to previous page"
     >
-      <span class="svg-icon" style="--url: url('assets/icons/chevron-left.svg');"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/chevron-left.svg');" aria-hidden="true"></span>
     </button>
 
     <div class="page-numbers">
@@ -118,6 +120,10 @@
         [class.ellipsis]="page === -1"
         (click)="page !== -1 && goToPage(page)"
         [disabled]="page === -1"
+        [attr.aria-label]="page === -1 ? null : 'Go to page ' + page"
+        [attr.aria-current]="page === currentPage ? 'page' : null"
+        [style.pointer-events]="page === -1 ? 'none' : 'auto'"
+        [tabindex]="page === -1 ? -1 : 0"
       >
         {{ page === -1 ? '...' : page }}
       </button>
@@ -128,11 +134,12 @@
       (click)="nextPage()" 
       [disabled]="currentPage === totalPages"
       title="Next page"
+      aria-label="Go to next page"
     >
-      <span class="svg-icon" style="--url: url('assets/icons/chevron-right.svg');"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/chevron-right.svg');" aria-hidden="true"></span>
     </button>
 
-    <span class="pagination-info">
+    <span class="pagination-info" aria-live="polite">
       {{ currentPage }} / {{ totalPages }} ({{ totalItems }})
     </span>
   </div>
@@ -163,7 +170,12 @@
         formControlName="target_url"
         [required]="true"
         tooltip="Destination URL"
+        autocomplete="url"
       ></app-input>
+      <div class="error-message" *ngIf="editForm.get('target_url')?.invalid && editForm.get('target_url')?.touched">
+        <span *ngIf="editForm.get('target_url')?.errors?.['required']">Destination URL is required</span>
+        <span *ngIf="editForm.get('target_url')?.errors?.['pattern']">Please enter a valid URL (starting with http:// or https://)</span>
+      </div>
     </div>
     <app-button
       type="submit"

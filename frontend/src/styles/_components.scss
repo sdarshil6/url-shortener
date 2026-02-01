@@ -23,6 +23,11 @@
     box-shadow: var(--shadow);
 }
 
+.btn-primary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .btn-primary:active {
     transform: translateY(0);
 }
@@ -36,6 +41,12 @@
 .btn-icon {
     width: 20px;
     height: 20px;
+}
+
+.btn-icon:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 .google-btn {
@@ -63,6 +74,11 @@
 .google-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: var(--border-light);
+}
+
+.google-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 /* Input Groups */
