@@ -26,7 +26,8 @@ export class CreateLinkComponent {
   ) {
     this.linkForm = this.fb.group({
       target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
-      custom_code: ['', [Validators.pattern(/^[a-zA-Z0-9_-]*$/)]]
+      custom_code: ['', [Validators.pattern(/^[a-zA-Z0-9_-]*$/)]],
+      expires_at: ['', []]
     });
   }
 
@@ -42,6 +43,10 @@ export class CreateLinkComponent {
       
       if (this.linkForm.value.custom_code) {
         linkData.custom_key = this.linkForm.value.custom_code;
+      }
+      
+      if (this.linkForm.value.expires_at) {
+        linkData.expires_at = new Date(this.linkForm.value.expires_at).toISOString();
       }
       
       this.linkService.createLink(linkData).subscribe({

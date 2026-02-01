@@ -349,6 +349,47 @@ def get_my_urls(
     return [add_qr_code_to_url_info(url, request) for url in urls]
 
 
+@app.get("/me/urls/paginated", response_model=schemas.PaginatedURLResponse)
+def get_my_urls_paginated(
+    request: Request,
+    page: int = 1,
+    limit: int = 20,
+    search: str = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    filter_status: str = None,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get paginated URLs with search, sorting, and filtering."""
+    import math
+    
+    # Validate and sanitize inputs
+    page = max(1, page)
+    limit = min(max(1, limit), 100)  # Max 100 items per page
+    
+    urls, total = crud.get_user_urls_paginated(
+        db,
+        owner_id=current_user.id,
+        page=page,
+        limit=limit,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        filter_status=filter_status
+    )
+    
+    total_pages = math.ceil(total / limit) if total > 0 else 1
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages,
+        "items": [add_qr_code_to_url_info(url, request) for url in urls]
+    }
+
+
 @app.post("/url", response_model=schemas.URLInfo)
 @limiter.limit("30/minute")
 def create_url(

@@ -1,6 +1,6 @@
-# 🚀 Shortify: A Full-Stack URL Shortener & Analytics Platform
+# 🚀 NilUrl: A Full-Stack URL Shortener & Analytics Platform
 
-Shortify is a production-grade, full-stack URL shortening service built with a powerful FastAPI backend and a modern, responsive frontend. It goes beyond simple link shortening by offering a complete, multi-user platform with secure authentication, detailed analytics, and advanced link management capabilities. The project is designed from the ground up to be a secure, scalable, and feature-rich service.
+NilUrl is a production-grade, full-stack URL shortening service built with a powerful FastAPI backend and a modern, responsive frontend. It goes beyond simple link shortening by offering a complete, multi-user platform with secure authentication, detailed analytics, and advanced link management capabilities. The project is designed from the ground up to be a secure, scalable, and feature-rich service.
 
 ---
 

@@ -173,6 +173,85 @@ def get_user_urls(db: Session, owner_id: int) -> List[models.URL]:
         _handle_db_error(db, operation, e)
 
 
+def get_user_urls_paginated(
+    db: Session,
+    owner_id: int,
+    page: int = 1,
+    limit: int = 10,
+    search: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    filter_status: Optional[str] = None
+) -> tuple[List[models.URL], int]:
+    """Get paginated URLs for a user with optional search, sorting, and filtering."""
+    operation = "get_user_urls_paginated"
+    try:
+        from datetime import datetime, timezone
+        logger.debug(f"Fetching paginated URLs for user", extra={'extra_data': {
+            'owner_id': owner_id,
+            'page': page,
+            'limit': limit,
+            'search': search,
+            'sort_by': sort_by,
+            'sort_order': sort_order,
+            'filter_status': filter_status
+        }})
+        
+        # Base query
+        query = db.query(models.URL).filter(models.URL.owner_id == owner_id)
+        
+        # Apply search filter
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                (models.URL.target_url.ilike(search_pattern)) |
+                (models.URL.key.ilike(search_pattern))
+            )
+        
+        # Apply status filter
+        if filter_status == "active":
+            query = query.filter(
+                models.URL.is_active == True,
+                (models.URL.expires_at == None) | (models.URL.expires_at > datetime.now(timezone.utc))
+            )
+        elif filter_status == "expired":
+            query = query.filter(
+                (models.URL.is_active == False) |
+                ((models.URL.expires_at != None) & (models.URL.expires_at <= datetime.now(timezone.utc)))
+            )
+        
+        # Get total count before pagination
+        total = query.count()
+        
+        # Apply sorting
+        if sort_by == "clicks":
+            order_col = models.URL.clicks
+        elif sort_by == "expires_at":
+            order_col = models.URL.expires_at
+        else:  # default to created_at
+            order_col = models.URL.created_at
+        
+        if sort_order.lower() == "asc":
+            query = query.order_by(order_col.asc())
+        else:
+            query = query.order_by(order_col.desc())
+        
+        # Apply pagination
+        offset = (page - 1) * limit
+        result = query.offset(offset).limit(limit).all()
+        
+        logger.debug(f"Found {len(result)} URLs (total: {total}) for user", extra={'extra_data': {
+            'owner_id': owner_id,
+            'count': len(result),
+            'total': total,
+            'page': page
+        }})
+        
+        return result, total
+    except SQLAlchemyError as e:
+        _handle_db_error(db, operation, e)
+
+
 def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> Optional[models.URL]:
     operation = "create_db_url"
     try:

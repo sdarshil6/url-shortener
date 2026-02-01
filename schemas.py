@@ -70,6 +70,14 @@ class URLInfo(URL):
     qr_code: str | None = None
 
 
+class PaginatedURLResponse(BaseModel):
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    items: List[URLInfo]
+
+
 class OtpVerification(BaseModel):
     email: EmailStr
     otp: str

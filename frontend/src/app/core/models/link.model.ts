@@ -8,6 +8,23 @@ export interface Link {
   admin_url: string;
 }
 
+export interface PaginatedLinkResponse {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  items: Link[];
+}
+
+export interface LinkQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort_by?: 'created_at' | 'clicks' | 'expires_at';
+  sort_order?: 'asc' | 'desc';
+  filter_status?: 'active' | 'expired' | null;
+}
+
 export interface CreateLinkRequest {
   target_url: string;
   custom_key?: string;

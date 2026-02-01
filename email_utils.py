@@ -210,8 +210,8 @@ def send_otp_email(email: str, otp: str) -> EmailResult:
     logger.info(f"Preparing OTP email", extra={'extra_data': {'email': email}})
     
     message = MIMEMultipart("alternative")
-    message["Subject"] = "Your Shortify Account Verification Code"
-    message["From"] = f"Shortify <{settings.MAIL_FROM}>"
+    message["Subject"] = "Your NilUrl Account Verification Code"
+    message["From"] = f"NilUrl <{settings.MAIL_FROM}>"
     message["To"] = email
 
     html_content = f"""
@@ -248,7 +248,7 @@ def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     <html>
         <body>
             <h2>Password Reset Request</h2>
-            <p>You requested a password reset for your Shortify account. Please click the link below to set a new password:</p>
+            <p>You requested a password reset for your NilUrl account. Please click the link below to set a new password:</p>
             <p><a href="{reset_link}" style="background-color: #2563eb; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Reset Your Password</a></p>
             <p>This link will expire in 15 minutes.</p>
             <p>If you did not request a password reset, please ignore this email.</p>
@@ -257,8 +257,8 @@ def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     """
 
     message = MIMEMultipart("alternative")
-    message["Subject"] = "Your Shortify Password Reset Link"
-    message["From"] = f"Shortify <{settings.MAIL_FROM}>"
+    message["Subject"] = "Your NilUrl Password Reset Link"
+    message["From"] = f"NilUrl <{settings.MAIL_FROM}>"
     message["To"] = email
 
     part = MIMEText(html_content, "html")

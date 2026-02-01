@@ -1,10 +1,10 @@
 ﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
-import { Link, LinkAnalytics } from '../../../../core/models/link.model';
+import { Link, LinkAnalytics, LinkQueryParams } from '../../../../core/models/link.model';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
@@ -12,13 +12,26 @@ import { InputComponent } from '../../../../shared/components/input/input.compon
 @Component({
   selector: 'app-link-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ModalComponent, ButtonComponent, InputComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ModalComponent, ButtonComponent, InputComponent],
   templateUrl: './link-list.component.html',
   styleUrls: ['./link-list.component.scss']
 })
 export class LinkListComponent implements OnInit, OnDestroy {
   links: Link[] = [];
   loading = false;
+
+  // Pagination
+  currentPage = 1;
+  itemsPerPage = 20;
+  totalItems = 0;
+  totalPages = 0;
+
+  // Search and filters
+  searchQuery = '';
+  searchSubject = new Subject<string>();
+  sortBy: 'created_at' | 'clicks' | 'expires_at' = 'created_at';
+  sortOrder: 'asc' | 'desc' = 'desc';
+  filterStatus: 'active' | 'expired' | null = null;
 
   showQRModal = false;
   showEditModal = false;
@@ -32,6 +45,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   analyticsLoading = false;
 
   private linkCreatedSubscription?: Subscription;
+  private searchSubscription?: Subscription;
 
   constructor(
     private linkService: LinkService,
@@ -44,22 +58,54 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.editForm = this.fb.group({
       target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]]
     });
+
+    // Setup search debouncing
+    this.searchSubscription = this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(searchValue => {
+      this.searchQuery = searchValue;
+      this.currentPage = 1;
+      this.loadLinks();
+    });
+
     this.loadLinks();
     
     this.linkCreatedSubscription = this.linkService.linkCreated$.subscribe(() => {
+      this.currentPage = 1;
       this.loadLinks();
     });
   }
 
   ngOnDestroy(): void {
     this.linkCreatedSubscription?.unsubscribe();
+    this.searchSubscription?.unsubscribe();
   }
 
   loadLinks(): void {
     this.loading = true;
-    this.linkService.getUserLinks().subscribe({
-      next: (links) => {
-        this.links = links;
+    
+    const queryParams: LinkQueryParams = {
+      page: this.currentPage,
+      limit: this.itemsPerPage,
+      sort_by: this.sortBy,
+      sort_order: this.sortOrder
+    };
+
+    if (this.searchQuery) {
+      queryParams.search = this.searchQuery;
+    }
+
+    if (this.filterStatus) {
+      queryParams.filter_status = this.filterStatus;
+    }
+
+    this.linkService.getUserLinksPaginated(queryParams).subscribe({
+      next: (response) => {
+        this.links = response.items;
+        this.totalItems = response.total;
+        this.totalPages = response.total_pages;
+        this.currentPage = response.page;
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -71,9 +117,92 @@ export class LinkListComponent implements OnInit, OnDestroy {
     });
   }
 
+  onSearchInput(value: string): void {
+    this.searchSubject.next(value);
+  }
+
+  onSortChange(sortBy: 'created_at' | 'clicks' | 'expires_at'): void {
+    if (this.sortBy === sortBy) {
+      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortBy = sortBy;
+      this.sortOrder = 'desc';
+    }
+    this.currentPage = 1;
+    this.loadLinks();
+  }
+
+  onFilterChange(status: 'active' | 'expired' | null): void {
+    this.filterStatus = status;
+    this.currentPage = 1;
+    this.loadLinks();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.loadLinks();
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.loadLinks();
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.loadLinks();
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (this.totalPages <= maxVisible) {
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (this.currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push(-1); // ellipsis
+        pages.push(this.totalPages);
+      } else if (this.currentPage >= this.totalPages - 2) {
+        pages.push(1);
+        pages.push(-1);
+        for (let i = this.totalPages - 3; i <= this.totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push(-1);
+        pages.push(this.currentPage - 1);
+        pages.push(this.currentPage);
+        pages.push(this.currentPage + 1);
+        pages.push(-1);
+        pages.push(this.totalPages);
+      }
+    }
+    
+    return pages;
+  }
+
   refreshLinks(): void {
+    this.currentPage = 1;
     this.loadLinks();
     this.toastService.info('Your links have been refreshed.');
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.filterStatus = null;
+    this.sortBy = 'created_at';
+    this.sortOrder = 'desc';
+    this.currentPage = 1;
+    this.loadLinks();
   }
 
   getShortUrl(shortCode: string): string {

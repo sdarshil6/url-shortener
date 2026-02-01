@@ -1,54 +1,141 @@
 <div class="dashboard-column">
   <div class="dashboard-header">
     <h2 class="dashboard-title">
-      <span class="svg-icon" style="--url: url('assets/icons/grid.svg'); width: 20px; height: 20px;"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/grid.svg');"></span>
       Your Links
+      <span class="count-badge" *ngIf="totalItems > 0">({{ totalItems }})</span>
     </h2>
     <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
-      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg'); width: 14px; height: 14px;"></span>
+      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg');"></span>
       <span>Refresh</span>
     </button>
   </div>
+
+  <!-- Search and Filters -->
+  <div class="controls-bar">
+    <div class="search-box">
+      <span class="svg-icon search-icon" style="--url: url('assets/icons/search.svg');"></span>
+      <input 
+        type="text" 
+        placeholder="Search by URL or short code..." 
+        [(ngModel)]="searchQuery"
+        (input)="onSearchInput($any($event.target).value)"
+        class="search-input"
+      />
+    </div>
+
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label class="filter-label">Sort:</label>
+        <select [(ngModel)]="sortBy" (change)="onSortChange(sortBy)" class="filter-select">
+          <option value="created_at">Date</option>
+          <option value="clicks">Clicks</option>
+          <option value="expires_at">Expiry</option>
+        </select>
+        <button class="sort-order-btn" (click)="onSortChange(sortBy)" [title]="sortOrder === 'asc' ? 'Ascending' : 'Descending'">
+          <span class="svg-icon" [style.--url]="sortOrder === 'asc' ? 'url(\'assets/icons/arrow-up.svg\')' : 'url(\'assets/icons/arrow-down.svg\')'"></span>
+        </button>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Filter:</label>
+        <select [(ngModel)]="filterStatus" (change)="onFilterChange(filterStatus)" class="filter-select">
+          <option [ngValue]="null">All</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+
+      <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="searchQuery || filterStatus" title="Clear filters">
+        <span class="svg-icon" style="--url: url('assets/icons/x.svg');"></span>
+      </button>
+    </div>
+  </div>
   
-  <ul class="links-list">
-    <div *ngIf="links.length === 0 && !loading" class="empty-state">
-      <p>No links present</p>
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loader-container">
+    <div class="loader"></div>
+  </div>
+
+  <!-- Links List -->
+  <ul class="links-list" *ngIf="!loading">
+    <div *ngIf="links.length === 0" class="empty-state">
+      <p *ngIf="!searchQuery && !filterStatus">No links present</p>
+      <p *ngIf="searchQuery || filterStatus">No links match your filters</p>
     </div>
     
     <li *ngFor="let link of links" class="link-card fade-in">
       <div class="link-header">
         <div class="short-url">
-          <a [href]="getShortUrl(link.url)" target="_blank">{{ getDisplayUrl(link.url) }}</a>
+          <a [href]="getShortUrl(link.url)" target="_blank" [title]="getShortUrl(link.url)">{{ getDisplayUrl(link.url) }}</a>
         </div>
         <button class="copy-btn btn-icon" (click)="copyToClipboard(link.url)" title="Copy short link">
-          <span class="svg-icon" style="--url: url('assets/icons/copy.svg'); width: 14px; height: 14px;"></span>
+          <span class="svg-icon" style="--url: url('assets/icons/copy.svg');"></span>
         </button>
       </div>
       
-      <p class="target-url">{{ link.target_url }}</p>
+      <p class="target-url" [title]="link.target_url">{{ link.target_url }}</p>
       
       <div class="link-footer">
         <div class="link-stats">
-          <span><strong>{{ link.clicks }}</strong> Clicks</span>
-          <span>Expires: <strong>{{ getExpirationDisplay(link.expires_at) }}</strong></span>
+          <span title="Total clicks"><strong>{{ link.clicks }}</strong> Clicks</span>
+          <span title="Link expiration">Exp: <strong>{{ getExpirationDisplay(link.expires_at) }}</strong></span>
         </div>
         <div class="link-actions">
-          <div class="qr-code-container" (click)="openQRModal(link)" title="Click to view QR Code">
+          <div class="qr-code-container" (click)="openQRModal(link)" title="View QR Code">
             <img [src]="link.qr_code" alt="QR Code" class="qr-code-img" />
           </div>
           <button class="analytics-btn btn-icon" (click)="openAnalytics(link)" title="View Analytics">
-            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg'); width: 14px; height: 14px;"></span>
+            <span class="svg-icon" style="--url: url('assets/icons/bar-chart.svg');"></span>
           </button>
           <button class="edit-btn btn-icon" (click)="openEditModal(link)" title="Edit Link">
-            <span class="svg-icon" style="--url: url('assets/icons/edit.svg'); width: 14px; height: 14px;"></span>
+            <span class="svg-icon" style="--url: url('assets/icons/edit.svg');"></span>
           </button>
           <button class="delete-btn btn-icon" (click)="deleteLink(link)" title="Delete Link">
-            <span class="svg-icon" style="--url: url('assets/icons/trash.svg'); width: 14px; height: 14px;"></span>
+            <span class="svg-icon" style="--url: url('assets/icons/trash.svg');"></span>
           </button>
         </div>
       </div>
     </li>
   </ul>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="!loading && totalPages > 1">
+    <button 
+      class="pagination-btn" 
+      (click)="previousPage()" 
+      [disabled]="currentPage === 1"
+      title="Previous page"
+    >
+      <span class="svg-icon" style="--url: url('assets/icons/chevron-left.svg');"></span>
+    </button>
+
+    <div class="page-numbers">
+      <button 
+        *ngFor="let page of getPageNumbers()" 
+        class="page-btn"
+        [class.active]="page === currentPage"
+        [class.ellipsis]="page === -1"
+        (click)="page !== -1 && goToPage(page)"
+        [disabled]="page === -1"
+      >
+        {{ page === -1 ? '...' : page }}
+      </button>
+    </div>
+
+    <button 
+      class="pagination-btn" 
+      (click)="nextPage()" 
+      [disabled]="currentPage === totalPages"
+      title="Next page"
+    >
+      <span class="svg-icon" style="--url: url('assets/icons/chevron-right.svg');"></span>
+    </button>
+
+    <span class="pagination-info">
+      {{ currentPage }} / {{ totalPages }} ({{ totalItems }})
+    </span>
+  </div>
 </div>
 
 <app-modal [isOpen]="showQRModal" title="QR Code" (closeModal)="closeQRModal()">
