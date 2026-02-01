@@ -1,12 +1,9 @@
-import smtplib
-import ssl
-import time
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Tuple
+import asyncio
+from typing import List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from config import settings
 from logging_config import get_logger
 
@@ -29,174 +26,21 @@ class EmailResult:
     attempts: int = 1
 
 
-def _send_email_with_retry(
-    email: str,
-    message: MIMEMultipart,
-    email_type: str,
-    max_retries: int = 3,
-    base_delay: float = 1.0
-) -> EmailResult:
-    """
-    Send an email with exponential backoff retry logic.
-    
-    Args:
-        email: Recipient email address
-        message: The MIMEMultipart message to send
-        email_type: Type of email for logging (e.g., 'otp', 'password_reset')
-        max_retries: Maximum number of retry attempts
-        base_delay: Base delay in seconds for exponential backoff
-    
-    Returns:
-        EmailResult with status and details
-    """
-    last_error = None
-    
-    for attempt in range(1, max_retries + 1):
-        server = None
-        try:
-            logger.debug(
-                f"Attempting to send {email_type} email",
-                extra={'extra_data': {'email': email, 'attempt': attempt, 'max_retries': max_retries}}
-            )
-            
-            context = ssl.create_default_context()
-            server = smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT, timeout=30)
-            server.starttls(context=context)
-            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
-            server.sendmail(settings.MAIL_FROM, email, message.as_string())
-            
-            logger.info(
-                f"{email_type.replace('_', ' ').title()} email sent successfully",
-                extra={'extra_data': {'email': email, 'attempts': attempt}}
-            )
-            return EmailResult(
-                status=EmailStatus.SUCCESS,
-                message=f"Email sent successfully to {email}",
-                attempts=attempt
-            )
-            
-        except smtplib.SMTPConnectError as e:
-            last_error = e
-            logger.warning(
-                f"SMTP connection error on attempt {attempt}",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'attempt': attempt,
-                    'error': str(e)
-                }}
-            )
-        except smtplib.SMTPAuthenticationError as e:
-            # Don't retry on auth errors
-            logger.error(
-                f"SMTP authentication error - not retrying",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'error': str(e)
-                }}
-            )
-            return EmailResult(
-                status=EmailStatus.FAILED,
-                message=f"SMTP authentication failed: {str(e)}",
-                attempts=attempt
-            )
-        except smtplib.SMTPServerDisconnected as e:
-            last_error = e
-            logger.warning(
-                f"SMTP server disconnected on attempt {attempt}",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'attempt': attempt,
-                    'error': str(e)
-                }}
-            )
-        except smtplib.SMTPRecipientsRefused as e:
-            # Don't retry on recipient refused
-            logger.error(
-                f"SMTP recipients refused - not retrying",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'error': str(e)
-                }}
-            )
-            return EmailResult(
-                status=EmailStatus.FAILED,
-                message=f"Recipient refused: {str(e)}",
-                attempts=attempt
-            )
-        except smtplib.SMTPException as e:
-            last_error = e
-            logger.warning(
-                f"SMTP error on attempt {attempt}",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'attempt': attempt,
-                    'error_type': type(e).__name__,
-                    'error': str(e)
-                }}
-            )
-        except (ConnectionError, TimeoutError, OSError) as e:
-            last_error = e
-            logger.warning(
-                f"Network error on attempt {attempt}",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'attempt': attempt,
-                    'error_type': type(e).__name__,
-                    'error': str(e)
-                }}
-            )
-        except Exception as e:
-            last_error = e
-            logger.error(
-                f"Unexpected error sending email",
-                extra={'extra_data': {
-                    'email': email,
-                    'email_type': email_type,
-                    'attempt': attempt,
-                    'error_type': type(e).__name__,
-                    'error': str(e)
-                }},
-                exc_info=True
-            )
-        finally:
-            if server:
-                try:
-                    server.quit()
-                except Exception:
-                    pass
-        
-        # Exponential backoff before retry
-        if attempt < max_retries:
-            delay = base_delay * (2 ** (attempt - 1))
-            logger.debug(
-                f"Waiting {delay}s before retry",
-                extra={'extra_data': {'email': email, 'delay': delay}}
-            )
-            time.sleep(delay)
-    
-    # All retries exhausted
-    logger.error(
-        f"Failed to send {email_type} email after {max_retries} attempts",
-        extra={'extra_data': {
-            'email': email,
-            'email_type': email_type,
-            'final_error': str(last_error)
-        }}
-    )
-    return EmailResult(
-        status=EmailStatus.FAILED,
-        message=f"Failed after {max_retries} attempts: {str(last_error)}",
-        attempts=max_retries
-    )
+# Configure FastMail
+conf = ConnectionConfig(
+    MAIL_USERNAME=settings.MAIL_USERNAME,
+    MAIL_PASSWORD=settings.MAIL_PASSWORD,
+    MAIL_FROM=settings.MAIL_FROM,
+    MAIL_PORT=settings.MAIL_PORT,
+    MAIL_SERVER=settings.MAIL_SERVER,
+    MAIL_STARTTLS=settings.MAIL_STARTTLS,
+    MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True
+)
 
 
-def send_otp_email(email: str, otp: str) -> EmailResult:
+async def send_otp_email(email: str, otp: str) -> EmailResult:
     """
     Sends a one-time password (OTP) to the user's email address.
     
@@ -209,11 +53,6 @@ def send_otp_email(email: str, otp: str) -> EmailResult:
     """
     logger.info(f"Preparing OTP email", extra={'extra_data': {'email': email}})
     
-    message = MIMEMultipart("alternative")
-    message["Subject"] = "Your NilUrl Account Verification Code"
-    message["From"] = f"NilUrl <{settings.MAIL_FROM}>"
-    message["To"] = email
-
     html_content = f"""
     <html>
         <body>
@@ -225,13 +64,28 @@ def send_otp_email(email: str, otp: str) -> EmailResult:
     </html>
     """
 
-    part = MIMEText(html_content, "html")
-    message.attach(part)
+    message = MessageSchema(
+        subject="Your NilUrl Account Verification Code",
+        recipients=[email],
+        body=html_content,
+        subtype=MessageType.html
+    )
 
-    return _send_email_with_retry(email, message, "otp")
+    fm = FastMail(conf)
+    
+    try:
+        await fm.send_message(message)
+        logger.info(f"OTP email sent successfully", extra={'extra_data': {'email': email}})
+        return EmailResult(status=EmailStatus.SUCCESS, message=f"Email sent successfully to {email}")
+    except Exception as e:
+        logger.error(
+            f"Failed to send OTP email",
+            extra={'extra_data': {'email': email, 'error': str(e)}}
+        )
+        return EmailResult(status=EmailStatus.FAILED, message=f"Failed: {str(e)}")
 
 
-def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
+async def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     """
     Sends a password reset link to the user's email address.
     
@@ -256,12 +110,22 @@ def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     </html>
     """
 
-    message = MIMEMultipart("alternative")
-    message["Subject"] = "Your NilUrl Password Reset Link"
-    message["From"] = f"NilUrl <{settings.MAIL_FROM}>"
-    message["To"] = email
+    message = MessageSchema(
+        subject="Your NilUrl Password Reset Link",
+        recipients=[email],
+        body=html_content,
+        subtype=MessageType.html
+    )
 
-    part = MIMEText(html_content, "html")
-    message.attach(part)
+    fm = FastMail(conf)
 
-    return _send_email_with_retry(email, message, "password_reset")
+    try:
+        await fm.send_message(message)
+        logger.info(f"Password reset email sent successfully", extra={'extra_data': {'email': email}})
+        return EmailResult(status=EmailStatus.SUCCESS, message=f"Email sent successfully to {email}")
+    except Exception as e:
+        logger.error(
+            f"Failed to send password reset email",
+            extra={'extra_data': {'email': email, 'error': str(e)}}
+        )
+        return EmailResult(status=EmailStatus.FAILED, message=f"Failed: {str(e)}")

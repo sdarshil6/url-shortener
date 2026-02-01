@@ -17,6 +17,10 @@ class User(Base):
     otp_expires_at = Column(DateTime, nullable=True, default=None)
     reset_token = Column(String, nullable=True, default=None, index=True)
     reset_token_expires_at = Column(DateTime, nullable=True, default=None)
+    
+    # Security fields
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True, default=None)
 
     plan_name = Column(String, default='starter')
     razorpay_subscription_id = Column(String, nullable=True, unique=True)

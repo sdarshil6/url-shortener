@@ -172,6 +172,7 @@ async def register_user(
 
 
 @app.post("/resend-otp")
+@limiter.limit("5/minute")
 def resend_otp(
     request: Request,
     resend_request: schemas.ResendOtpRequest,
@@ -222,6 +223,7 @@ def resend_otp(
 
 
 @app.post("/verify-otp")
+@limiter.limit("10/minute")
 def verify_otp(request: Request, verification_data: schemas.OtpVerification, db: Session = Depends(get_db)):
     ip_address = request.client.host if request.client else 'unknown'
     user_agent = request.headers.get('user-agent', 'unknown')
@@ -237,7 +239,32 @@ def verify_otp(request: Request, verification_data: schemas.OtpVerification, db:
             reason='user_not_found'
         )
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check for account lockout
+    if user.locked_until:
+        # DB stores naive or aware? Assuming consistent usage of timezone.utc as seen in resend_otp
+        # If DB stores naive (UTC) and we compare with aware, it might fail.
+        # But resend_otp uses datetime.now(timezone.utc). 
+        # Let's assume consistent aware objects or that SQLAlchemy handles it if backend supports it.
+        # Ideally, ensure compare same types.
+        if user.locked_until.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc) if user.locked_until.tzinfo is None else user.locked_until > datetime.now(timezone.utc):
+             auth.log_auth_event(
+                event_type='verify_otp',
+                success=False,
+                email=verification_data.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                reason='account_locked'
+            )
+             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Account locked due to too many failed attempts. Try again later.")
+
     if not user.otp or user.otp != verification_data.otp:
+        # Increment failed attempts
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+        db.commit()
+        
         auth.log_auth_event(
             event_type='verify_otp',
             success=False,
@@ -247,6 +274,7 @@ def verify_otp(request: Request, verification_data: schemas.OtpVerification, db:
             reason='invalid_otp'
         )
         raise HTTPException(status_code=400, detail="Invalid or incorrect OTP")
+        
     if user.otp_expires_at < datetime.now(timezone.utc):
         auth.log_auth_event(
             event_type='verify_otp',
@@ -258,6 +286,11 @@ def verify_otp(request: Request, verification_data: schemas.OtpVerification, db:
         )
         raise HTTPException(status_code=400, detail="OTP has expired")
 
+    # Reset security counters on success
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.add(user)
+    
     crud.verify_user_otp(db, user=user)
     
     auth.log_auth_event(

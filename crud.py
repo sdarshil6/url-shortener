@@ -260,24 +260,55 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> Optiona
             if get_db_url_by_key(db, key):
                 logger.warning(f"Custom key already in use", extra={'extra_data': {'custom_key': key}})
                 return None
-        else:
-            key = secrets.token_urlsafe(5)
+            
+            # Race condition handling for custom keys
+            secret_key = secrets.token_urlsafe(8)
+            db_url = models.URL(
+                target_url=url.target_url,
+                key=key,
+                secret_key=secret_key,
+                owner_id=owner_id,
+                expires_at=url.expires_at
+            )
+            try:
+                db.add(db_url)
+                db.commit()
+                db.refresh(db_url)
+                logger.info(f"URL created successfully", extra={'extra_data': {'url_id': db_url.id, 'key': key}})
+                return db_url
+            except IntegrityError:
+                db.rollback()
+                logger.warning(f"Custom key collision detected (race condition)", extra={'extra_data': {'custom_key': key}})
+                return None
 
-        secret_key = secrets.token_urlsafe(8)
-        logger.info(f"Creating new URL", extra={'extra_data': {'owner_id': owner_id, 'key': key}})
-        
-        db_url = models.URL(
-            target_url=url.target_url,
-            key=key,
-            secret_key=secret_key,
-            owner_id=owner_id,
-            expires_at=url.expires_at
-        )
-        db.add(db_url)
-        db.commit()
-        db.refresh(db_url)
-        logger.info(f"URL created successfully", extra={'extra_data': {'url_id': db_url.id, 'key': key}})
-        return db_url
+        else:
+            # Random key generation with retries
+            max_retries = 3
+            for attempt in range(max_retries):
+                key = secrets.token_urlsafe(5)
+                secret_key = secrets.token_urlsafe(8)
+                
+                db_url = models.URL(
+                    target_url=url.target_url,
+                    key=key,
+                    secret_key=secret_key,
+                    owner_id=owner_id,
+                    expires_at=url.expires_at
+                )
+                try:
+                    db.add(db_url)
+                    db.commit()
+                    db.refresh(db_url)
+                    logger.info(f"URL created successfully", extra={'extra_data': {'url_id': db_url.id, 'key': key}})
+                    return db_url
+                except IntegrityError:
+                    db.rollback()
+                    logger.warning(f"Key collision detected, retrying", extra={'extra_data': {'key': key, 'attempt': attempt}})
+                    continue
+            
+            logger.error(f"Failed to generate unique key after {max_retries} attempts")
+            raise Exception("Failed to generate unique URL key")
+            
     except SQLAlchemyError as e:
         _handle_db_error(db, operation, e)
 
