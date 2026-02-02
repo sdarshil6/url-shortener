@@ -1,6 +1,7 @@
 import qrcode
 from io import BytesIO
 import base64
+import constants
 
 
 def generate_qr_code(url: str) -> str:
@@ -8,10 +9,10 @@ def generate_qr_code(url: str) -> str:
     Generates a QR code from a URL and returns it as a base64 encoded data URI.
     """
     qr = qrcode.QRCode(
-        version=1,
+        version=constants.QR_VERSION,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
+        box_size=constants.QR_BOX_SIZE,
+        border=constants.QR_BORDER,
     )
     qr.add_data(url)
     qr.make(fit=True)

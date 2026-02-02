@@ -9,6 +9,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { AuthLayoutComponent } from '../../../../shared/components/auth-layout/auth-layout.component';
 import { environment } from '../../../../../environments/environment';
+import { AUTH_MESSAGES } from '../../../../shared/constants/messages.constants';
 
 @Component({
   selector: 'app-login',
@@ -52,31 +53,31 @@ export class LoginComponent implements OnInit {
         
         if (token) {
           this.authService.handleAuthenticationPublic(token);
-          this.toastService.success('Welcome! You have been signed in with Google.');
+          this.toastService.success(AUTH_MESSAGES.GOOGLE_LOGIN_SUCCESS);
           // Use setTimeout to ensure localStorage write completes before navigation
           // This prevents race condition where auth guard checks before token is stored
           setTimeout(() => {
             this.router.navigate(['/dashboard'], { replaceUrl: true });
           }, 0);
         } else if (error) {
-          // Handle specific error codes from backend
-          let errorMessage = 'Google authentication failed. Please try again.';
+          // Handle specific error codes from backend 
+          let errorMessage: string = AUTH_MESSAGES.GOOGLE_AUTH_FAILED;
           
           switch (error) {
             case 'EMAIL_NOT_VERIFIED':
-              errorMessage = 'Please verify your email with Google before signing in.';
+              errorMessage = AUTH_MESSAGES.EMAIL_NOT_VERIFIED;
               break;
             case 'AUTH_PROVIDER_MISMATCH':
-              errorMessage = 'An account with this email already exists. Please sign in with your password.';
+              errorMessage = AUTH_MESSAGES.AUTH_PROVIDER_MISMATCH;
               break;
             case 'CSRF_VALIDATION_FAILED':
-              errorMessage = 'Security validation failed. Please try signing in again.';
+              errorMessage = AUTH_MESSAGES.CSRF_VALIDATION_FAILED;
               break;
             case 'GOOGLE_AUTH_FAILED':
-              errorMessage = 'Google authentication failed. Please try again.';
+              errorMessage = AUTH_MESSAGES.GOOGLE_AUTH_FAILED;
               break;
             default:
-              errorMessage = `Authentication failed: ${error}`;
+              errorMessage = AUTH_MESSAGES.AUTHENTICATION_FAILED(error);
           }
           
           this.errorMessage = errorMessage;
@@ -97,12 +98,12 @@ export class LoginComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       ).subscribe({
         next: () => {
-          this.toastService.success('Welcome back! You are now signed in.');
+          this.toastService.success(AUTH_MESSAGES.LOGIN_SUCCESS);
           this.router.navigate(['/dashboard']);
         },
         error: (error) => {
           this.loading = false;
-          const message = error.error?.detail || 'Login failed. Please try again.';
+          const message = error.error?.detail || AUTH_MESSAGES.LOGIN_FAILED;
           this.errorMessage = message;
           this.toastService.error(message);
         }

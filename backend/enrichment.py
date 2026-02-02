@@ -3,6 +3,8 @@ import time
 from typing import Optional
 from user_agents import parse
 from logging_config import get_logger
+from config import settings, PRIVATE_IP_PREFIXES
+import constants
 
 # Module-specific logger
 logger = get_logger(__name__)
@@ -17,35 +19,13 @@ def _is_local_ip(ip_address: str) -> bool:
     """Check if the IP address is a local/private address."""
     if not ip_address:
         return True
-    return (
-        ip_address.startswith("127.") or
-        ip_address.startswith("192.168.") or
-        ip_address.startswith("10.") or
-        ip_address.startswith("172.16.") or
-        ip_address.startswith("172.17.") or
-        ip_address.startswith("172.18.") or
-        ip_address.startswith("172.19.") or
-        ip_address.startswith("172.20.") or
-        ip_address.startswith("172.21.") or
-        ip_address.startswith("172.22.") or
-        ip_address.startswith("172.23.") or
-        ip_address.startswith("172.24.") or
-        ip_address.startswith("172.25.") or
-        ip_address.startswith("172.26.") or
-        ip_address.startswith("172.27.") or
-        ip_address.startswith("172.28.") or
-        ip_address.startswith("172.29.") or
-        ip_address.startswith("172.30.") or
-        ip_address.startswith("172.31.") or
-        ip_address == "::1" or
-        ip_address == "localhost"
-    )
+    return any(ip_address.startswith(prefix) for prefix in PRIVATE_IP_PREFIXES)
 
 
 def get_geolocation_for_ip(
     ip_address: str,
-    max_retries: int = 2,
-    base_timeout: float = 5.0
+    max_retries: int = None,
+    base_timeout: float = None
 ) -> dict:
     """
     Fetches geolocation data for a given IP address using the ip-api.com service.
@@ -53,12 +33,18 @@ def get_geolocation_for_ip(
     
     Args:
         ip_address: The IP address to look up
-        max_retries: Maximum number of retry attempts
-        base_timeout: Base timeout for HTTP requests
+        max_retries: Maximum number of retry attempts (defaults from config)
+        base_timeout: Base timeout for HTTP requests (defaults from config)
     
     Returns:
         Dictionary with country, region, and city
     """
+    # Use config defaults if not specified
+    if max_retries is None:
+        max_retries = settings.GEO_API_MAX_RETRIES
+    if base_timeout is None:
+        base_timeout = settings.GEO_API_TIMEOUT
+    
     if _is_local_ip(ip_address):
         logger.debug(
             f"Local IP address detected, skipping geolocation",
@@ -66,7 +52,7 @@ def get_geolocation_for_ip(
         )
         return LOCAL_GEO_DATA
 
-    api_url = f"http://ip-api.com/json/{ip_address}"
+    api_url = f"{settings.GEO_API_URL}{settings.GEO_API_ENDPOINT.format(ip=ip_address)}"
     last_error = None
     
     for attempt in range(1, max_retries + 1):
@@ -83,7 +69,7 @@ def get_geolocation_for_ip(
                 
                 # Handle rate limiting (HTTP 429)
                 if response.status_code == 429:
-                    retry_after = int(response.headers.get('Retry-After', 60))
+                    retry_after = int(response.headers.get('Retry-After', settings.GEO_API_RATE_LIMIT_WAIT))
                     logger.warning(
                         f"Rate limited by ip-api.com",
                         extra={'extra_data': {
@@ -92,9 +78,9 @@ def get_geolocation_for_ip(
                         }}
                     )
                     # Don't wait too long, just return default
-                    if retry_after > 10:
+                    if retry_after > settings.GEO_API_RETRY_DELAY:
                         return DEFAULT_GEO_DATA
-                    time.sleep(min(retry_after, 5))
+                    time.sleep(min(retry_after, settings.GEO_API_FALLBACK_DELAY))
                     continue
                 
                 response.raise_for_status()
@@ -201,12 +187,12 @@ def parse_user_agent(user_agent_string: Optional[str]) -> dict:
         return DEFAULT_DEVICE_DATA
     
     # Truncate excessively long user agents (potential attack)
-    if len(user_agent_string) > 1000:
+    if len(user_agent_string) > constants.MAX_USER_AGENT_LENGTH:
         logger.warning(
             f"User agent string exceeds maximum length, truncating",
             extra={'extra_data': {'original_length': len(user_agent_string)}}
         )
-        user_agent_string = user_agent_string[:1000]
+        user_agent_string = user_agent_string[:constants.MAX_USER_AGENT_LENGTH]
     
     try:
         user_agent = parse(user_agent_string)

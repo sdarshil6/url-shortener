@@ -43,7 +43,7 @@ svg.loading {
   font-size: 0.875rem;
   font-weight: 400;
   color: var(--text-secondary);
-  margin-left: 0;
+  margin-left: -0.25rem;
 }
 
 /* SVG Icon Fixes */
@@ -147,7 +147,7 @@ svg.loading {
 }
 
 .filter-label {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
   white-space: nowrap;
 }

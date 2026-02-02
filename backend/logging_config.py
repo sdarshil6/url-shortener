@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from contextvars import ContextVar
 from typing import Optional
+import constants
 
 # Context variable for request correlation ID
 request_id_var: ContextVar[Optional[str]] = ContextVar('request_id', default=None)
@@ -137,8 +138,8 @@ def setup_logging():
     app_log_path = os.path.join(LOGS_DIR, "app.log")
     app_file_handler = RotatingFileHandler(
         app_log_path,
-        maxBytes=5*1024*1024,  # 5 Megabytes
-        backupCount=10
+        maxBytes=constants.LOG_FILE_MAX_BYTES,
+        backupCount=constants.LOG_BACKUP_COUNT
     )
     app_file_handler.setFormatter(json_formatter)
     app_file_handler.setLevel(log_level)
@@ -147,8 +148,8 @@ def setup_logging():
     error_log_path = os.path.join(LOGS_DIR, "error.log")
     error_file_handler = RotatingFileHandler(
         error_log_path,
-        maxBytes=5*1024*1024,
-        backupCount=10
+        maxBytes=constants.LOG_FILE_MAX_BYTES,
+        backupCount=constants.LOG_BACKUP_COUNT
     )
     error_file_handler.setFormatter(json_formatter)
     error_file_handler.setLevel(logging.ERROR)
@@ -157,8 +158,8 @@ def setup_logging():
     audit_log_path = os.path.join(LOGS_DIR, "audit.log")
     audit_file_handler = RotatingFileHandler(
         audit_log_path,
-        maxBytes=5*1024*1024,
-        backupCount=10
+        maxBytes=constants.LOG_FILE_MAX_BYTES,
+        backupCount=constants.LOG_BACKUP_COUNT
     )
     audit_file_handler.setFormatter(json_formatter)
     audit_file_handler.setLevel(logging.INFO)

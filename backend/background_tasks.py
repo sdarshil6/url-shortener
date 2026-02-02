@@ -3,7 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI
-
+import constants
 
 from app_state import RECENT_CLICKS_CACHE, DEDUPLICATION_TIMEDELTA
 
@@ -16,7 +16,7 @@ async def cleanup_cache_periodically():
             print(message)
             logging.info(message)
 
-            cutoff_time = datetime.utcnow() - (DEDUPLICATION_TIMEDELTA * 10)
+            cutoff_time = datetime.utcnow() - (DEDUPLICATION_TIMEDELTA * constants.CACHE_CLEANUP_MULTIPLIER)
 
             items_to_check = list(RECENT_CLICKS_CACHE.items())
 
@@ -31,7 +31,7 @@ async def cleanup_cache_periodically():
         except Exception as e:
             logging.error(f"Error in cache cleanup task: {e}", exc_info=True)
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(constants.CACHE_CLEANUP_INTERVAL_SECONDS)
 
 
 @asynccontextmanager

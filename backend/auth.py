@@ -13,6 +13,7 @@ import schemas
 from database import SessionLocal
 from config import settings
 from logging_config import get_logger, set_request_context
+import constants
 
 # Module-specific loggers
 logger = get_logger(__name__)
@@ -23,7 +24,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth state parameter storage (in-memory for CSRF protection)
 # In production, use Redis or database-backed session store
 oauth_states = {}  # {state: (timestamp, ip_address)}
-OAUTH_STATE_EXPIRY_MINUTES = 15
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -148,7 +148,7 @@ def log_auth_event(
         'success': success,
         'email': email,
         'ip_address': ip_address,
-        'user_agent': user_agent[:200] if user_agent else None,  # Truncate long user agents
+        'user_agent': user_agent[:constants.MAX_USER_AGENT_LOG_LENGTH] if user_agent else None,  # Truncate long user agents
     }
     
     if reason:
@@ -190,7 +190,7 @@ def validate_oauth_state(state: str, ip_address: str) -> bool:
     timestamp, stored_ip = oauth_states[state]
     
     # Check if state is expired
-    if datetime.utcnow() - timestamp > timedelta(minutes=OAUTH_STATE_EXPIRY_MINUTES):
+    if datetime.utcnow() - timestamp > timedelta(minutes=constants.OAUTH_STATE_EXPIRY_MINUTES):
         logger.warning(f"Expired OAuth state parameter", extra={'extra_data': {'state_prefix': state[:8], 'ip': ip_address}})
         del oauth_states[state]
         return False
@@ -211,7 +211,7 @@ def cleanup_expired_oauth_states():
     now = datetime.utcnow()
     expired_states = [
         state for state, (timestamp, _) in oauth_states.items()
-        if now - timestamp > timedelta(minutes=OAUTH_STATE_EXPIRY_MINUTES)
+        if now - timestamp > timedelta(minutes=constants.OAUTH_STATE_EXPIRY_MINUTES)
     ]
     
     for state in expired_states:

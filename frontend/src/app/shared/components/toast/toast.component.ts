@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 import { ToastService, Toast } from '../../services/toast.service';
+import { TOAST_ICONS } from '../../constants/app.constants';
 
 @Component({
   selector: 'app-toast',
@@ -25,9 +26,9 @@ export class ToastComponent implements OnInit {
 
   getIconUrl(type: string): string {
     const icons: Record<string, string> = {
-      success: 'assets/icons/check.svg',
-      error: 'assets/icons/x-circle.svg',
-      warning: 'assets/icons/alert-triangle.svg',
+      success: TOAST_ICONS.success,
+      error: TOAST_ICONS.error,
+      warning: TOAST_ICONS.warning,
       info: 'assets/icons/info.svg'
     };
     return icons[type] || icons['info'];

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { TOAST_DURATIONS } from '../constants/app.constants';
 
 export interface Toast {
   id: number;
@@ -20,19 +21,19 @@ export class ToastService {
     return this.toastsSubject.asObservable();
   }
 
-  success(message: string, duration: number = 3000): void {
+  success(message: string, duration: number = TOAST_DURATIONS.success): void {
     this.show({ type: 'success', message, duration });
   }
 
-  error(message: string, duration: number = 4000): void {
+  error(message: string, duration: number = TOAST_DURATIONS.error): void {
     this.show({ type: 'error', message, duration });
   }
 
-  warning(message: string, duration: number = 3500): void {
+  warning(message: string, duration: number = TOAST_DURATIONS.warning): void {
     this.show({ type: 'warning', message, duration });
   }
 
-  info(message: string, duration: number = 3000): void {
+  info(message: string, duration: number = TOAST_DURATIONS.info): void {
     this.show({ type: 'info', message, duration });
   }
 

@@ -9,6 +9,8 @@ import { ModalComponent } from '../../../../shared/components/modal/modal.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { SkeletonLoaderComponent } from '../../../../shared/components/skeleton-loader/skeleton-loader.component';
+import { PAGINATION, SEARCH } from '../../../../shared/constants/app.constants';
+import { LINK_MESSAGES } from '../../../../shared/constants/messages.constants';
 
 @Component({
   selector: 'app-link-list',
@@ -23,7 +25,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   // Pagination
   currentPage = 1;
-  itemsPerPage = 20;
+  itemsPerPage = PAGINATION.defaultItemsPerPage;
   totalItems = 0;
   totalPages = 0;
 
@@ -63,7 +65,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
     // Setup search debouncing
     this.searchSubscription = this.searchSubject.pipe(
-      debounceTime(400),
+      debounceTime(SEARCH.debounceMs),
       distinctUntilChanged()
     ).subscribe(searchValue => {
       this.searchQuery = searchValue;
@@ -168,7 +170,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   getPageNumbers(): number[] {
     const pages: number[] = [];
-    const maxVisible = 5;
+    const maxVisible = PAGINATION.maxVisiblePages;
     
     if (this.totalPages <= maxVisible) {
       for (let i = 1; i <= this.totalPages; i++) {
@@ -228,7 +230,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   copyToClipboard(shortCode: string): void {
     const url = this.getShortUrl(shortCode);
     navigator.clipboard.writeText(url);
-    this.toastService.success('Link copied to clipboard.');
+    this.toastService.success(LINK_MESSAGES.LINK_COPIED);
   }
 
   openQRModal(link: Link): void {
@@ -253,7 +255,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    this.toastService.success('QR code downloaded.');
+    this.toastService.success(LINK_MESSAGES.QR_CODE_DOWNLOADED);
   }
 
   openEditModal(link: Link): void {
@@ -284,7 +286,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
       ).subscribe({
         next: () => {
           this.editLoading = false;
-          this.toastService.success('Your link has been updated.');
+          this.toastService.success(LINK_MESSAGES.LINK_UPDATED);
           this.closeEditModal();
           this.loadLinks();
         },
@@ -339,7 +341,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       ).subscribe({
         next: () => {
-          this.toastService.success('Link deleted successfully.');
+          this.toastService.success(LINK_MESSAGES.LINK_DELETED);
           this.loadLinks();
         },
         error: (error) => {

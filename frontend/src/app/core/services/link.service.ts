@@ -4,6 +4,7 @@ import { Observable, Subject } from 'rxjs';
 import { retry, delay, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Link, CreateLinkRequest, UpdateLinkRequest, LinkAnalytics, PaginatedLinkResponse, LinkQueryParams } from '../models/link.model';
+import { API_RETRY } from '../../shared/constants/app.constants';
 
 @Injectable({
   providedIn: 'root'
@@ -23,10 +24,10 @@ export class LinkService {
   getUserLinks(): Observable<Link[]> {
     return this.http.get<Link[]>(`${this.API_URL}/me/urls`).pipe(
       retry({
-        count: 2,
+        count: API_RETRY.count,
         delay: (error, retryCount) => {
-          // Exponential backoff: 1s, 2s
-          return delay(Math.min(1000 * retryCount, 3000))(error);
+          // Exponential backoff
+          return delay(Math.min(API_RETRY.baseDelay * retryCount, API_RETRY.maxDelay))(error);
         }
       })
     );
@@ -44,9 +45,9 @@ export class LinkService {
     
     return this.http.get<PaginatedLinkResponse>(`${this.API_URL}/me/urls/paginated`, { params }).pipe(
       retry({
-        count: 2,
+        count: API_RETRY.count,
         delay: (error, retryCount) => {
-          return delay(Math.min(1000 * retryCount, 3000))(error);
+          return delay(Math.min(API_RETRY.baseDelay * retryCount, API_RETRY.maxDelay))(error);
         }
       })
     );
@@ -71,7 +72,7 @@ export class LinkService {
     return this.http.get<LinkAnalytics>(`${this.API_URL}/admin/${secretKey}/analytics`).pipe(
       retry({
         count: 1,
-        delay: 1000
+        delay: API_RETRY.baseDelay
       })
     );
   }

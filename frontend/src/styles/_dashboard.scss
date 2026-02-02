@@ -36,7 +36,11 @@
 /* Dashboard Column */
 .dashboard-column {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
+    background-image: linear-gradient(var(--surface), var(--surface)), 
+                      linear-gradient(135deg, var(--border-white-subtle), var(--border-white-inset), var(--border-white-subtle));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
     border-radius: var(--radius);
     padding: 0.875rem;
     box-shadow: var(--shadow);

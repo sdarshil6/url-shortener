@@ -6,6 +6,7 @@ import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
+import { LINK_MESSAGES } from '../../../../shared/constants/messages.constants';
 
 @Component({
   selector: 'app-create-link',
@@ -71,8 +72,8 @@ export class CreateLinkComponent {
       ).subscribe({
         next: (response) => {
           this.isLoading = false;
-          this.successMessage = 'Your link has been created.';
-          this.toastService.success('Your link has been created.');
+          this.successMessage = LINK_MESSAGES.LINK_CREATED;
+          this.toastService.success(LINK_MESSAGES.LINK_CREATED);
           this.linkForm.reset();
           
           // Notify link-list to refresh via service
@@ -84,7 +85,7 @@ export class CreateLinkComponent {
         },
         error: (error) => {
           this.isLoading = false;
-          const message = error.error?.detail || 'Failed to create link. Please try again.';
+          const message = error.error?.detail || LINK_MESSAGES.LINK_CREATE_FAILED;
           this.errorMessage = message;
           this.toastService.error(message);
         }

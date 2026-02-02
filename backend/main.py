@@ -8,6 +8,7 @@ import crud
 import schemas
 import models
 import auth
+import constants
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -43,7 +44,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:4200', 'http://127.0.0.1:4200'],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allow_headers=['Content-Type', 'Authorization', 'X-Correlation-ID'],
@@ -114,7 +115,7 @@ def add_qr_code_to_url_info(db_url: models.URL, request: Request):
 
 
 @app.post("/users", status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/hour")
+@limiter.limit(config.RATE_LIMITS['register'])
 async def register_user(
     request: Request,
     user: schemas.UserCreate,
@@ -137,9 +138,9 @@ async def register_user(
         raise HTTPException(status_code=400, detail="Email already registered")
 
     password = user.password
-    if len(password) < 8:
+    if len(password) < constants.MIN_PASSWORD_LENGTH:
         raise HTTPException(
-            status_code=400, detail="Password must be at least 8 characters long.")
+            status_code=400, detail=f"Password must be at least {constants.MIN_PASSWORD_LENGTH} characters long.")
     if not any(char.isdigit() for char in password):
         raise HTTPException(
             status_code=400, detail="Password must contain at least one number.")
@@ -149,12 +150,11 @@ async def register_user(
     if not any(char.islower() for char in password):
         raise HTTPException(
             status_code=400, detail="Password must contain at least one lowercase letter.")
-    special_characters = "!@#$%^&*"
-    if not any(char in special_characters for char in password):
+    if not any(char in constants.REQUIRED_SPECIAL_CHARS for char in password):
         raise HTTPException(
-            status_code=400, detail=f"Password must contain at least one special character ({special_characters}).")
-    otp = str(secrets.randbelow(900000) + 100000)
-    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+            status_code=400, detail=f"Password must contain at least one special character ({constants.REQUIRED_SPECIAL_CHARS}).")
+    otp = str(secrets.randbelow(constants.OTP_MAX - constants.OTP_MIN + 1) + constants.OTP_MIN)
+    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=constants.OTP_EXPIRY_MINUTES)
 
     crud.create_user(db=db, user=user, otp=otp, otp_expires_at=otp_expires_at)
 
@@ -172,7 +172,7 @@ async def register_user(
 
 
 @app.post("/resend-otp")
-@limiter.limit("5/minute")
+@limiter.limit(config.RATE_LIMITS['resend_otp'])
 def resend_otp(
     request: Request,
     resend_request: schemas.ResendOtpRequest,
@@ -204,8 +204,8 @@ def resend_otp(
         )
         raise HTTPException(status_code=400, detail="User is already verified")
     
-    otp = str(secrets.randbelow(900000) + 100000)
-    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    otp = str(secrets.randbelow(constants.OTP_MAX - constants.OTP_MIN + 1) + constants.OTP_MIN)
+    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=constants.OTP_EXPIRY_MINUTES)
     
     crud.update_user_otp(db, user=user, otp=otp, otp_expires_at=otp_expires_at)
     
@@ -223,7 +223,7 @@ def resend_otp(
 
 
 @app.post("/verify-otp")
-@limiter.limit("10/minute")
+@limiter.limit(config.RATE_LIMITS['login'])
 def verify_otp(request: Request, verification_data: schemas.OtpVerification, db: Session = Depends(get_db)):
     ip_address = request.client.host if request.client else 'unknown'
     user_agent = request.headers.get('user-agent', 'unknown')
@@ -305,7 +305,7 @@ def verify_otp(request: Request, verification_data: schemas.OtpVerification, db:
 
 
 @app.post("/token", response_model=schemas.Token)
-@limiter.limit("10/minute")
+@limiter.limit(config.RATE_LIMITS['login'])
 def login_for_access_token(
     request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
@@ -424,7 +424,7 @@ def get_my_urls_paginated(
 
 
 @app.post("/url", response_model=schemas.URLInfo)
-@limiter.limit("30/minute")
+@limiter.limit(config.RATE_LIMITS['create_url'])
 def create_url(
     url: schemas.URLCreate,
     request: Request,
@@ -533,6 +533,7 @@ def forward_to_target_url(
 
 
 @app.post("/forgot-password")
+@limiter.limit(config.RATE_LIMITS['forgot_password'])
 async def forgot_password(
     request: Request,
     payload: schemas.PasswordResetRequest,
@@ -590,6 +591,7 @@ async def forgot_password(
 
 
 @app.post("/reset-password")
+@limiter.limit(config.RATE_LIMITS['reset_password'])
 def reset_password(request: Request, payload: schemas.PasswordReset, db: Session = Depends(get_db)):
     ip_address = request.client.host if request.client else 'unknown'
     user_agent = request.headers.get('user-agent', 'unknown')
@@ -645,7 +647,7 @@ def reset_password(request: Request, payload: schemas.PasswordReset, db: Session
 
 
 @app.get("/auth/google/login")
-@limiter.limit("10/minute")
+@limiter.limit(config.RATE_LIMITS['login'])
 async def google_login(request: Request):
     """Generate login url and redirect."""
     ip_address = request.client.host if request.client else 'unknown'
@@ -664,7 +666,7 @@ async def google_login(request: Request):
 
 
 @app.get("/auth/google/callback")
-@limiter.limit("20/minute")
+@limiter.limit(config.RATE_LIMITS['update_url'])
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Process login response from Google and return user token."""
     ip_address = request.client.host if request.client else 'unknown'

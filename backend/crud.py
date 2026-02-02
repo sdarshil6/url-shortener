@@ -8,6 +8,7 @@ import auth
 import models
 import schemas
 from logging_config import get_logger
+import constants
 
 # Module-specific logger
 logger = get_logger(__name__)
@@ -262,7 +263,7 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> Optiona
                 return None
             
             # Race condition handling for custom keys
-            secret_key = secrets.token_urlsafe(8)
+            secret_key = secrets.token_urlsafe(constants.SECRET_KEY_LENGTH)
             db_url = models.URL(
                 target_url=url.target_url,
                 key=key,
@@ -283,10 +284,10 @@ def create_db_url(db: Session, url: schemas.URLCreate, owner_id: int) -> Optiona
 
         else:
             # Random key generation with retries
-            max_retries = 3
+            max_retries = constants.MAX_URL_KEY_GENERATION_RETRIES
             for attempt in range(max_retries):
-                key = secrets.token_urlsafe(5)
-                secret_key = secrets.token_urlsafe(8)
+                key = secrets.token_urlsafe(constants.URL_KEY_LENGTH)
+                secret_key = secrets.token_urlsafe(constants.SECRET_KEY_LENGTH)
                 
                 db_url = models.URL(
                     target_url=url.target_url,
@@ -446,13 +447,13 @@ def get_analytics_for_url(db_url: models.URL) -> schemas.AnalyticsData:
         total_clicks=db_url.clicks,
         unique_clicks=unique_clicks,
         top_referrers=[schemas.CountStat(
-            item=item, count=count) for item, count in referrer_counts.most_common(5)],
+            item=item, count=count) for item, count in referrer_counts.most_common(constants.ANALYTICS_TOP_ITEMS_COUNT)],
         clicks_by_country=[schemas.CountStat(
-            item=item, count=count) for item, count in country_counts.most_common(5)],
+            item=item, count=count) for item, count in country_counts.most_common(constants.ANALYTICS_TOP_ITEMS_COUNT)],
         clicks_by_browser=[schemas.CountStat(
-            item=item, count=count) for item, count in browser_counts.most_common(5)],
+            item=item, count=count) for item, count in browser_counts.most_common(constants.ANALYTICS_TOP_ITEMS_COUNT)],
         clicks_by_os=[schemas.CountStat(item=item, count=count)
-                      for item, count in os_counts.most_common(5)],
+                      for item, count in os_counts.most_common(constants.ANALYTICS_TOP_ITEMS_COUNT)],
         click_timeline=sorted([schemas.TimelineStat(date=date, count=count)
                               for date, count in timeline_counts.items()], key=lambda x: x.date)
     )

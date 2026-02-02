@@ -7,6 +7,7 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import SecretStr
 from config import settings
 from logging_config import get_logger
+import constants
 
 # Module-specific logger
 logger = get_logger(__name__)
@@ -63,13 +64,13 @@ async def send_otp_email(email: str, otp: str) -> EmailResult:
             <h2>Your Verification Code</h2>
             <p>Thank you for registering. Please use the following code to verify your account:</p>
             <h3 style="color: #2563eb; font-size: 24px; letter-spacing: 2px;">{otp}</h3>
-            <p>This code will expire in 10 minutes.</p>
+            <p>This code will expire in {constants.OTP_EXPIRY_MINUTES} minutes.</p>
         </body>
     </html>
     """
 
     message = MessageSchema(
-        subject="Your NilUrl Account Verification Code",
+        subject=f"Your {constants.APP_NAME} Account Verification Code",
         recipients=[email],
         body=html_content,
         subtype=MessageType.html
@@ -106,16 +107,16 @@ async def send_password_reset_email(email: str, reset_link: str) -> EmailResult:
     <html>
         <body>
             <h2>Password Reset Request</h2>
-            <p>You requested a password reset for your NilUrl account. Please click the link below to set a new password:</p>
+            <p>You requested a password reset for your {constants.APP_NAME} account. Please click the link below to set a new password:</p>
             <p><a href="{reset_link}" style="background-color: #2563eb; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Reset Your Password</a></p>
-            <p>This link will expire in 15 minutes.</p>
+            <p>This link will expire in {constants.PASSWORD_RESET_EXPIRY_MINUTES} minutes.</p>
             <p>If you did not request a password reset, please ignore this email.</p>
         </body>
     </html>
     """
 
     message = MessageSchema(
-        subject="Your NilUrl Password Reset Link",
+        subject=f"Your {constants.APP_NAME} Password Reset Link",
         recipients=[email],
         body=html_content,
         subtype=MessageType.html
