@@ -116,7 +116,9 @@ def get_log_level() -> int:
 def setup_logging():
     """Configures the application's logging system with structured JSON logging."""
     
-    LOGS_DIR = "logs"
+    # Get the directory where this file is located (backend folder)
+    BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+    LOGS_DIR = os.path.join(BACKEND_DIR, "logs")
     if not os.path.exists(LOGS_DIR):
         os.makedirs(LOGS_DIR)
     
