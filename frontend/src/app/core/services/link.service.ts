@@ -58,9 +58,13 @@ export class LinkService {
   }
 
   updateLink(data: UpdateLinkRequest): Observable<{ message: string }> {
+    const payload: any = { target_url: data.target_url };
+    if (data.custom_key) payload.custom_key = data.custom_key;
+    if (data.expires_at) payload.expires_at = data.expires_at;
+    
     return this.http.patch<{ message: string }>(
       `${this.API_URL}/admin/${data.secret_key}`,
-      { target_url: data.target_url }
+      payload
     );
   }
 
@@ -70,6 +74,17 @@ export class LinkService {
 
   getAnalytics(secretKey: string): Observable<LinkAnalytics> {
     return this.http.get<LinkAnalytics>(`${this.API_URL}/admin/${secretKey}/analytics`).pipe(
+      retry({
+        count: 1,
+        delay: API_RETRY.baseDelay
+      })
+    );
+  }
+
+  exportToExcel(): Observable<Blob> {
+    return this.http.get(`${this.API_URL}/me/urls/export`, {
+      responseType: 'blob'
+    }).pipe(
       retry({
         count: 1,
         delay: API_RETRY.baseDelay

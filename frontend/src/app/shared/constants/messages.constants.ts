@@ -37,6 +37,7 @@ export const LINK_MESSAGES = {
   LINK_DELETED: 'Link deleted successfully.',
   LINK_COPIED: 'Link copied to clipboard.',
   QR_CODE_DOWNLOADED: 'QR code downloaded.',
+  exportSuccess: 'Links exported successfully.',
   
   // Error messages
   LINK_CREATE_FAILED: 'Failed to create link. Please try again.',

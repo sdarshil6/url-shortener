@@ -73,6 +73,13 @@
     color: var(--primary);
 }
 
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-export,
 .btn-refresh {
     padding: 0.4rem 0.65rem;
     background: rgba(91, 127, 245, 0.1);
@@ -88,14 +95,27 @@
     transition: all 0.15s;
 }
 
+.btn-export .svg-icon,
 .btn-refresh .svg-icon {
     width: 13px;
     height: 13px;
 }
 
+.btn-export:hover,
 .btn-refresh:hover {
     background: rgba(91, 127, 245, 0.2);
     transform: scale(1.05);
+}
+
+.btn-export:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-export:disabled:hover {
+    background: rgba(91, 127, 245, 0.1);
+    transform: none;
 }
 
 .btn-refresh.loading .svg-icon {
@@ -104,18 +124,7 @@
 
 /* Links List */
 .links-list {
-    overflow-y: auto;
     list-style: none;
-    flex: 1;
-}
-
-.links-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.links-list::-webkit-scrollbar-thumb {
-    background: var(--border-light);
-    border-radius: 3px;
 }
 
 /* Link Cards - Compact Design */
@@ -231,7 +240,12 @@
 .link-stats strong {
     color: var(--primary);
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: clamp(0.75rem, 2vw, 0.8125rem);
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .link-actions {
@@ -341,10 +355,12 @@
 
 .stat-value {
     display: block;
-    font-size: 1.75rem;
+    font-size: clamp(1.25rem, 4vw, 1.75rem);
     font-weight: 800;
     color: var(--primary);
     margin-bottom: 0.25rem;
+    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 .stat-label {

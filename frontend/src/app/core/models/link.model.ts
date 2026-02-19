@@ -34,6 +34,8 @@ export interface CreateLinkRequest {
 export interface UpdateLinkRequest {
   secret_key: string;
   target_url: string;
+  custom_key?: string;
+  expires_at?: string;
 }
 
 export interface LinkAnalytics {

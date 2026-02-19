@@ -372,15 +372,33 @@ def deactivate_db_url_by_secret_key(db: Session, secret_key: str) -> Optional[mo
         _handle_db_error(db, operation, e)
 
 
-def update_db_url(db: Session, db_url: models.URL, new_target_url: str) -> models.URL:
+def update_db_url(db: Session, db_url: models.URL, url_update: schemas.URLUpdate) -> models.URL:
     operation = "update_db_url"
     try:
-        logger.info(f"Updating URL target", extra={'extra_data': {'url_id': db_url.id}})
-        db_url.target_url = new_target_url
+        logger.info(f"Updating URL", extra={'extra_data': {'url_id': db_url.id}})
+        db_url.target_url = url_update.target_url
+        
+        if url_update.custom_key is not None:
+            # Check if custom_key already exists for a different URL
+            existing_url = db.query(models.URL).filter(
+                models.URL.key == url_update.custom_key,
+                models.URL.id != db_url.id
+            ).first()
+            if existing_url:
+                raise ValueError(f"Custom key '{url_update.custom_key}' already exists")
+            db_url.key = url_update.custom_key
+        
+        if url_update.expires_at is not None:
+            db_url.expires_at = url_update.expires_at
+        
         db.commit()
         db.refresh(db_url)
         logger.info(f"URL updated successfully", extra={'extra_data': {'url_id': db_url.id}})
         return db_url
+    except ValueError as e:
+        db.rollback()
+        logger.error(f"Validation error during {operation}", extra={'extra_data': {'error': str(e)}})
+        raise
     except SQLAlchemyError as e:
         _handle_db_error(db, operation, e)
 

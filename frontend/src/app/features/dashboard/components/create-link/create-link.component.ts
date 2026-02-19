@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractContro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
+import { DateService } from '../../../../shared/services/date.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { InputComponent } from '../../../../shared/components/input/input.component';
 import { LINK_MESSAGES } from '../../../../shared/constants/messages.constants';
@@ -27,12 +28,11 @@ export class CreateLinkComponent {
   constructor(
     private fb: FormBuilder,
     private linkService: LinkService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private dateService: DateService
   ) {
-    // Set minimum date to current time
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    this.minDate = now.toISOString().slice(0, 16);
+    // Set minimum date to current date
+    this.minDate = this.dateService.getCurrentDateString();
 
     this.linkForm = this.fb.group({
       target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
@@ -64,7 +64,7 @@ export class CreateLinkComponent {
       }
       
       if (this.linkForm.value.expires_at) {
-        linkData.expires_at = new Date(this.linkForm.value.expires_at).toISOString();
+        linkData.expires_at = this.dateService.toISOString(this.linkForm.value.expires_at);
       }
       
       this.linkService.createLink(linkData).pipe(

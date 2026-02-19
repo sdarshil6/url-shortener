@@ -423,6 +423,92 @@ def get_my_urls_paginated(
     }
 
 
+@app.get("/me/urls/export")
+def export_my_urls(
+    request: Request,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export user's URLs to Excel file."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    
+    # Get all user URLs
+    urls = crud.get_user_urls(db, owner_id=current_user.id)
+    
+    # Create workbook and worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Links"
+    
+    # Define headers
+    headers = ["Short Code", "Short URL", "Target URL", "Clicks", "Created At", "Expires At", "Status"]
+    ws.append(headers)
+    
+    # Style headers
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Add data rows
+    base_url = str(request.base_url).rstrip('/')
+    for url in urls:
+        short_url = f"{base_url}/{url.key}"
+        status = "Expired" if url.expires_at and datetime.now(timezone.utc) > url.expires_at else "Active"
+        created_at = url.created_at.strftime("%Y-%m-%d %H:%M:%S") if url.created_at else ""
+        expires_at = url.expires_at.strftime("%Y-%m-%d %H:%M:%S") if url.expires_at else "Never"
+        
+        ws.append([
+            url.key,
+            short_url,
+            url.target_url,
+            url.clicks,
+            created_at,
+            expires_at,
+            status
+        ])
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # Create filename with timestamp
+    filename = f"links_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    logger.info(
+        f"User {current_user.email} exported {len(urls)} links",
+        extra={'extra_data': {
+            'user_id': current_user.id,
+            'link_count': len(urls)
+        }}
+    )
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 @app.post("/url", response_model=schemas.URLInfo)
 @limiter.limit(config.RATE_LIMITS['create_url'])
 def create_url(
@@ -473,8 +559,11 @@ def update_url(
     if not db_url or db_url.owner_id != current_user.id:
         raise HTTPException(status_code=404, detail="URL not found")
 
-    updated_db_url = crud.update_db_url(db, db_url, url_update.target_url)
-    return add_qr_code_to_url_info(updated_db_url, request)
+    try:
+        updated_db_url = crud.update_db_url(db, db_url, url_update)
+        return add_qr_code_to_url_info(updated_db_url, request)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @app.delete("/admin/{secret_key}")

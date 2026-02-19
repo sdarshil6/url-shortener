@@ -3,12 +3,18 @@
     <h2 class="dashboard-title">
       <span class="svg-icon" style="--url: url('assets/icons/grid.svg');"></span>
       Your Links
-      <span class="count-badge" *ngIf="totalItems > 0">({{ totalItems }})</span>
+      <span class="count-badge" *ngIf="totalItems > 0">({{ totalItems | number }})</span>
     </h2>
-    <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
-      <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg');"></span>
-      <span>Refresh</span>
-    </button>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportLinks()" title="Export to Excel" [disabled]="totalItems === 0 || loading">
+        <span class="svg-icon" style="--url: url('assets/icons/download.svg');"></span>
+        <span>Export</span>
+      </button>
+      <button class="btn-refresh" (click)="refreshLinks()" title="Refresh link list">
+        <span class="svg-icon" style="--url: url('assets/icons/refresh-cw.svg');"></span>
+        <span>Refresh</span>
+      </button>
+    </div>
   </div>
 
   <!-- Search and Filters -->
@@ -79,7 +85,7 @@
       
       <div class="link-footer">
         <div class="link-stats">
-          <span title="Total clicks"><strong>{{ link.clicks }}</strong> Clicks</span>
+          <span title="Total clicks"><strong>{{ link.clicks | number }}</strong> Clicks</span>
           <span title="Link expiration">Exp: <strong>{{ getExpirationDisplay(link.expires_at) }}</strong></span>
         </div>
         <div class="link-actions">
@@ -140,7 +146,7 @@
     </button>
 
     <span class="pagination-info" aria-live="polite">
-      {{ currentPage }} / {{ totalPages }} ({{ totalItems }})
+      <span class="page-current">{{ currentPage }}</span> / <span class="page-total">{{ totalPages }}</span> <span class="items-total">({{ totalItems | number }})</span>
     </span>
   </div>
 </div>
@@ -177,6 +183,31 @@
         <span *ngIf="editForm.get('target_url')?.errors?.['pattern']">Please enter a valid URL (starting with http:// or https://)</span>
       </div>
     </div>
+    <div class="form-group">
+      <label for="custom_code">Custom Code (Optional)</label>
+      <app-input
+        formControlName="custom_code"
+        type="text"
+        placeholder="my-custom-code"
+        [tooltip]="'Custom short code'"
+      ></app-input>
+      <div class="error-message" *ngIf="editForm.get('custom_code')?.invalid && editForm.get('custom_code')?.touched">
+        <span *ngIf="editForm.get('custom_code')?.errors?.['pattern']">Only letters, numbers, dashes and underscores allowed</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="expires_at">Expiry Date (Optional)</label>
+      <input
+        formControlName="expires_at"
+        type="date"
+        class="date-input"
+        placeholder="Select expiry date"
+        [min]="minDate"
+      />
+      <div class="error-message" *ngIf="editForm.get('expires_at')?.invalid && editForm.get('expires_at')?.touched">
+        <span *ngIf="editForm.get('expires_at')?.errors?.['pastDate']">Expiry date must be in the future</span>
+      </div>
+    </div>
     <app-button
       type="submit"
       label="Save Changes"
@@ -199,11 +230,11 @@
       </div>
       <div class="analytics-summary">
         <div class="summary-stat">
-          <span class="stat-value">{{ analytics.total_clicks }}</span>
+          <span class="stat-value">{{ analytics.total_clicks | number }}</span>
           <span class="stat-label">Total Clicks</span>
         </div>
         <div class="summary-stat">
-          <span class="stat-value">{{ analytics.unique_clicks }}</span>
+          <span class="stat-value">{{ analytics.unique_clicks | number }}</span>
           <span class="stat-label">Unique Visitors</span>
         </div>
       </div>
@@ -217,7 +248,7 @@
           <ul class="analytics-list">
             <li *ngFor="let item of analytics.clicks_by_os">
               <span class="item-name">{{ item.item }}</span>
-              <span class="item-count">{{ item.count }}</span>
+              <span class="item-count">{{ item.count | number }}</span>
             </li>
           </ul>
         </div>
@@ -230,7 +261,7 @@
           <ul class="analytics-list">
             <li *ngFor="let item of analytics.clicks_by_browser">
               <span class="item-name">{{ item.item }}</span>
-              <span class="item-count">{{ item.count }}</span>
+              <span class="item-count">{{ item.count | number }}</span>
             </li>
           </ul>
         </div>

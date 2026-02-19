@@ -47,6 +47,8 @@ class URLBase(BaseModel):
 
 class URLUpdate(BaseModel):
     target_url: str
+    custom_key: str | None = None
+    expires_at: datetime | None = None
 
 
 class URLCreate(URLBase):

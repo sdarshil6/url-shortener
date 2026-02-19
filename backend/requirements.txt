@@ -34,3 +34,5 @@ validators==0.35.0
 user-agents
 fastapi-sso
 razorpay
+openpyxl
+faker

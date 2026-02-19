@@ -1,9 +1,10 @@
 ﻿import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Subscription, Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { LinkService } from '../../../../core/services/link.service';
 import { ToastService } from '../../../../shared/services/toast.service';
+import { DateService } from '../../../../shared/services/date.service';
 import { Link, LinkAnalytics, LinkQueryParams } from '../../../../core/models/link.model';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -43,6 +44,7 @@ export class LinkListComponent implements OnInit, OnDestroy {
   selectedLink: Link | null = null;
   editForm!: FormGroup;
   editLoading = false;
+  minDate: string;
 
   analytics: LinkAnalytics | null = null;
   analyticsLoading = false;
@@ -55,12 +57,17 @@ export class LinkListComponent implements OnInit, OnDestroy {
     private linkService: LinkService,
     private fb: FormBuilder,
     private toastService: ToastService,
-    private cdr: ChangeDetectorRef
-  ) {}
+    private cdr: ChangeDetectorRef,
+    private dateService: DateService
+  ) {
+    this.minDate = this.dateService.getCurrentDateString();
+  }
 
   ngOnInit(): void {
     this.editForm = this.fb.group({
-      target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]]
+      target_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
+      custom_code: ['', [Validators.pattern(/^[a-zA-Z0-9_-]*$/)]],
+      expires_at: ['', [this.futureDateValidator.bind(this)]]
     });
 
     // Setup search debouncing
@@ -205,6 +212,29 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.toastService.info('Your links have been refreshed.');
   }
 
+  exportLinks(): void {
+    if (this.totalItems === 0 || this.loading) return;
+
+    this.linkService.exportToExcel().subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const timestamp = new Date().toISOString().split('T')[0];
+        link.download = `links-export-${timestamp}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        this.toastService.success(LINK_MESSAGES.exportSuccess);
+      },
+      error: (error) => {
+        const errorMessage = this.getErrorMessage(error, 'export your links');
+        this.toastService.error(errorMessage);
+      }
+    });
+  }
+
   clearFilters(): void {
     this.searchQuery = '';
     this.filterStatus = null;
@@ -223,8 +253,31 @@ export class LinkListComponent implements OnInit, OnDestroy {
   }
 
   getExpirationDisplay(expiresAt: string | null): string {
-    if (!expiresAt) return 'Never';
-    return new Date(expiresAt).toLocaleDateString();
+    return this.dateService.formatToDDMMYYYY(expiresAt);
+  }
+
+  private futureDateValidator(control: AbstractControl): ValidationErrors | null {
+    if (!control.value) return null;
+    const selectedDate = new Date(control.value);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    return selectedDate > now ? null : { pastDate: true };
+  }
+
+  private async checkCustomCodeAvailability(customCode: string): Promise<boolean> {
+    if (!customCode || customCode === this.selectedLink?.url.split('/').pop()) {
+      return true;
+    }
+    try {
+      await this.linkService.getUserLinks().toPromise();
+      return true;
+    } catch (error: any) {
+      if (error.status === 409 || (error.error && error.error.detail && error.error.detail.includes('already exists'))) {
+        return false;
+      }
+      return true;
+    }
   }
 
   copyToClipboard(shortCode: string): void {
@@ -260,8 +313,11 @@ export class LinkListComponent implements OnInit, OnDestroy {
 
   openEditModal(link: Link): void {
     this.selectedLink = link;
+    const shortCode = link.url.split('/').pop() || '';
     this.editForm.patchValue({
-      target_url: link.target_url
+      target_url: link.target_url,
+      custom_code: shortCode,
+      expires_at: this.dateService.toDateInputValue(link.expires_at)
     });
     setTimeout(() => {
       this.showEditModal = true;
@@ -275,13 +331,35 @@ export class LinkListComponent implements OnInit, OnDestroy {
     this.editForm.reset();
   }
 
-  saveEdit(): void {
+  async saveEdit(): Promise<void> {
     if (this.editForm.valid && this.selectedLink) {
+      const customCode = this.editForm.value.custom_code;
+      const originalCode = this.selectedLink.url.split('/').pop() || '';
+      
+      // Validate custom code if changed
+      if (customCode && customCode !== originalCode) {
+        const isAvailable = await this.checkCustomCodeAvailability(customCode);
+        if (!isAvailable) {
+          this.toastService.error('Custom code already exists. Please choose another.');
+          return;
+        }
+      }
+      
       this.editLoading = true;
-      this.linkService.updateLink({
+      const updateData: any = {
         secret_key: this.selectedLink.admin_url,
         target_url: this.editForm.value.target_url
-      }).pipe(
+      };
+      
+      if (customCode) {
+        updateData.custom_key = customCode;
+      }
+      
+      if (this.editForm.value.expires_at) {
+        updateData.expires_at = this.dateService.toISOString(this.editForm.value.expires_at);
+      }
+      
+      this.linkService.updateLink(updateData).pipe(
         takeUntil(this.destroy$)
       ).subscribe({
         next: () => {
