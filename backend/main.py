@@ -1,4 +1,4 @@
-﻿from config import settings
+from config import settings
 import config
 from database import SessionLocal, engine
 import email_utils
@@ -34,6 +34,17 @@ logger = get_logger(__name__)
 audit_logger = get_logger('audit')
 
 models.Base.metadata.create_all(bind=engine)
+
+# Seed pricing plans if empty (first run)
+def _ensure_pricing_seeded():
+    db = SessionLocal()
+    try:
+        if db.query(models.PricingPlan).count() == 0:
+            from seed_pricing_multi_country import seed_multi_country_pricing
+            seed_multi_country_pricing(db)
+    finally:
+        db.close()
+_ensure_pricing_seeded()
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
@@ -102,6 +113,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@app.get("/api/pricing", response_model=List[schemas.PricingPlanWithRate])
+def get_pricing_plans(request: Request, db: Session = Depends(get_db)):
+    """Public: fetch pricing plans with country-specific rates."""
+    # Get client IP
+    ip_address = request.client.host if request.client else None
+    
+    # Detect country from IP
+    country_code = 'US'  # Default
+    if ip_address and not any(ip_address.startswith(prefix) for prefix in config.PRIVATE_IP_PREFIXES):
+        geo_data = enrichment.get_geolocation_for_ip(ip_address)
+        if geo_data and geo_data.get('country_code'):
+            country_code = geo_data['country_code']
+    
+    return crud.get_pricing_plans_for_country(db, country_code)
 
 
 def add_qr_code_to_url_info(db_url: models.URL, request: Request):

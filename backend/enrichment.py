@@ -89,6 +89,7 @@ def get_geolocation_for_ip(
                 if data.get("status") == "success":
                     result = {
                         "country": data.get("country"),
+                        "country_code": data.get("countryCode"),
                         "region": data.get("regionName"),
                         "city": data.get("city"),
                     }

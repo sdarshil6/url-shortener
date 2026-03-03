@@ -10,7 +10,7 @@ from faker import Faker
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine
-from models import Base, URL, Click
+from models import Base, URL, Click, PricingPlan
 
 # Initialize Faker
 fake = Faker()
@@ -329,6 +329,97 @@ def clear_tables(db: Session) -> None:
         raise
 
 
+def seed_pricing_plans(db):
+    """Seed pricing plans if table is empty."""
+    if db.query(PricingPlan).first():
+        print("Pricing plans already exist, skipping")
+        return
+    plans = [
+        PricingPlan(
+            slug="starter",
+            display_name="Starter",
+            description="Perfect for individuals and small projects",
+            price_monthly=0,
+            price_yearly=0,
+            currency="INR",
+            features=[
+                "Up to 20 shortened links",
+                "5 QR codes",
+                "5 custom links",
+                "Basic click analytics",
+                "Email support"
+            ],
+            limits={"links": 20, "qr_codes": 5, "custom_links": 5},
+            is_popular=False,
+            sort_order=1,
+            is_active=True
+        ),
+        PricingPlan(
+            slug="pro",
+            display_name="Pro",
+            description="For growing teams and professionals",
+            price_monthly=299,
+            price_yearly=2990,
+            currency="INR",
+            features=[
+                "Up to 150 shortened links",
+                "25 QR codes",
+                "Unlimited custom links",
+                "Advanced analytics",
+                "Edit & expire links",
+                "Priority support"
+            ],
+            limits={"links": 150, "qr_codes": 25, "custom_links": -1},
+            is_popular=True,
+            sort_order=2,
+            is_active=True
+        ),
+        PricingPlan(
+            slug="business",
+            display_name="Business",
+            description="For enterprises and high-volume usage",
+            price_monthly=999,
+            price_yearly=9990,
+            currency="INR",
+            features=[
+                "Up to 1,000 shortened links",
+                "100 QR codes",
+                "Unlimited custom links",
+                "Detailed geo analytics",
+                "Device tracking",
+                "Dedicated support"
+            ],
+            limits={"links": 1000, "qr_codes": 100, "custom_links": -1},
+            is_popular=False,
+            sort_order=3,
+            is_active=True
+        ),
+        PricingPlan(
+            slug="enterprise",
+            display_name="Enterprise",
+            description="Custom solutions for large organizations",
+            price_monthly=0,
+            price_yearly=0,
+            currency="INR",
+            features=[
+                "Unlimited links & QR codes",
+                "All Business features",
+                "Custom integrations",
+                "SLA guarantee",
+                "Account manager"
+            ],
+            limits={"links": -1, "qr_codes": -1, "custom_links": -1},
+            is_popular=False,
+            sort_order=4,
+            is_active=True
+        ),
+    ]
+    for p in plans:
+        db.add(p)
+    db.commit()
+    print(f"Seeded {len(plans)} pricing plans")
+
+
 def seed_database():
     """Main seeding function."""
     db = SessionLocal()
@@ -338,6 +429,9 @@ def seed_database():
         print("-" * 50)
         
         # Clear existing data
+        print("\nSeeding pricing plans...")
+        seed_pricing_plans(db)
+        print("-" * 50)
         print("\nClearing existing data...")
         clear_tables(db)
         print("-" * 50)

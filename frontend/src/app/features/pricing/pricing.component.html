@@ -1,0 +1,81 @@
+<div class="pricing-page">
+  <div class="pricing-container">
+    <header class="pricing-header">
+      <a routerLink="/auth/login" class="brand-link">
+        <span class="svg-icon" style="--url: url('assets/icons/link-logo.svg'); width: 24px; height: 24px;"></span>
+        <h1 class="brand-name">NilUrl</h1>
+      </a>
+      <h2 class="pricing-title">Simple, Transparent Pricing</h2>
+      <p class="pricing-subtitle">Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
+    </header>
+
+    @if (loading) {
+      <div class="pricing-loading">
+        <div class="loader"></div>
+        <p>Loading plans...</p>
+      </div>
+    } @else if (error) {
+      <div class="pricing-error">
+        <p>{{ error }}</p>
+        <a routerLink="/auth/login" class="retry-link">Back to Login</a>
+      </div>
+    } @else {
+      <div class="pricing-grid">
+        @for (plan of plans; track plan.id) {
+          <article class="pricing-card" [class.popular]="plan.is_popular">
+            @if (plan.is_popular) {
+              <span class="popular-badge">Most Popular</span>
+            }
+            <div class="card-header">
+              <h3 class="plan-name">{{ plan.display_name }}</h3>
+              @if (plan.description) {
+                <p class="plan-desc">{{ plan.description }}</p>
+              }
+              <div class="plan-price">
+                <span class="price">{{ formatPrice(plan.price_monthly, plan.currency) }}</span>
+                <span class="period">/month</span>
+              </div>
+              @if (plan.price_yearly > 0) {
+                <p class="yearly-note">{{ formatPrice(plan.price_yearly, plan.currency) }}/year (save 2 months)</p>
+              }
+            </div>
+            <ul class="plan-features">
+              @for (f of plan.features; track f) {
+                <li>
+                  <span class="svg-icon check" style="--url: url('assets/icons/check.svg'); width: 16px; height: 16px;"></span>
+                  {{ f }}
+                </li>
+              }
+            </ul>
+            @if (plan.links_limit !== undefined || plan.qr_codes_limit !== undefined) {
+              <div class="plan-limits">
+                @if (plan.links_limit !== undefined) {
+                  <span>{{ formatLimit(plan.links_limit) }} links</span>
+                }
+                @if (plan.qr_codes_limit !== undefined) {
+                  <span>{{ formatLimit(plan.qr_codes_limit) }} QR codes</span>
+                }
+              </div>
+            }
+            <div class="card-cta">
+              @if (isAuthenticated()) {
+                <a [routerLink]="['/dashboard']" class="cta-btn primary">Go to Dashboard</a>
+              } @else {
+                <a [routerLink]="['/auth/register']" class="cta-btn primary">Get Started</a>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+
+    <footer class="pricing-footer">
+      <p>© 2026 NilUrl. Enterprise URL Management Platform.</p>
+      <p class="footer-links">
+        <a routerLink="/auth/login">Login</a>
+        <span>·</span>
+        <a routerLink="/auth/register">Register</a>
+      </p>
+    </footer>
+  </div>
+</div>

@@ -595,3 +595,121 @@ def create_bulk_urls(db: Session, urls: list[schemas.URLCreate], owner_id: int) 
     
     return successful, failed, errors
 
+
+def get_pricing_plans(db: Session) -> List[models.PricingPlan]:
+    """Fetch active plans by sort_order."""
+    operation = "get_pricing_plans"
+    try:
+        return db.query(models.PricingPlan).filter(
+            models.PricingPlan.is_active == True
+        ).order_by(models.PricingPlan.sort_order).all()
+    except SQLAlchemyError as e:
+        _handle_db_error(db, operation, e)
+
+
+def get_pricing_plans_for_country(db: Session, country_code: str) -> List[dict]:
+    """Fetch plans with country-specific pricing and dynamically generated features."""
+    operation = "get_pricing_plans_for_country"
+    try:
+        # Supported countries
+        supported_countries = ['IN', 'US', 'GB', 'AU', 'BR']
+        if country_code not in supported_countries:
+            country_code = 'US'  # Default fallback
+        
+        plans = db.query(models.PricingPlan).filter(
+            models.PricingPlan.is_active == True
+        ).order_by(models.PricingPlan.sort_order).all()
+        
+        result = []
+        for plan in plans:
+            # Find rate for the country
+            rate = db.query(models.PricingCountryRate).filter(
+                models.PricingCountryRate.plan_id == plan.id,
+                models.PricingCountryRate.country_code == country_code
+            ).first()
+            
+            if not rate:
+                # Fallback to US
+                rate = db.query(models.PricingCountryRate).filter(
+                    models.PricingCountryRate.plan_id == plan.id,
+                    models.PricingCountryRate.country_code == 'US'
+                ).first()
+            
+            if rate:
+                # Generate features dynamically from columns
+                features = []
+                
+                # Links limit
+                if plan.links_limit == -1:
+                    features.append("Unlimited shortened links")
+                else:
+                    features.append(f"Up to {plan.links_limit:,} shortened links")
+                
+                # QR codes limit
+                if plan.qr_codes_limit == -1:
+                    features.append("Unlimited QR codes")
+                else:
+                    features.append(f"{plan.qr_codes_limit} QR codes")
+                
+                # Custom links limit
+                if plan.custom_links_limit == -1:
+                    features.append("Unlimited custom links")
+                else:
+                    features.append(f"{plan.custom_links_limit} custom links")
+                
+                # Analytics
+                if plan.has_advanced_analytics:
+                    features.append("Advanced analytics")
+                elif plan.has_basic_analytics:
+                    features.append("Basic click analytics")
+                
+                # Geo tracking
+                if plan.has_detailed_geo:
+                    features.append("Detailed geo analytics")
+                
+                # Device tracking
+                if plan.has_device_tracking:
+                    features.append("Device tracking")
+                
+                # Link features
+                if plan.has_link_editing:
+                    features.append("Edit links")
+                if plan.has_link_expiration:
+                    features.append("Set link expiration")
+                
+                # Advanced features
+                if plan.has_custom_integrations:
+                    features.append("Custom integrations")
+                if plan.has_sla_guarantee:
+                    features.append("SLA guarantee")
+                if plan.has_account_manager:
+                    features.append("Dedicated account manager")
+                
+                # Support
+                if plan.support_level == "dedicated":
+                    features.append("Dedicated support")
+                elif plan.support_level == "priority":
+                    features.append("Priority support")
+                elif plan.support_level == "basic":
+                    features.append("Email support")
+                
+                result.append({
+                    'id': plan.id,
+                    'slug': plan.slug,
+                    'display_name': plan.display_name,
+                    'description': plan.description,
+                    'features': features,
+                    'links_limit': plan.links_limit,
+                    'qr_codes_limit': plan.qr_codes_limit,
+                    'custom_links_limit': plan.custom_links_limit,
+                    'is_popular': plan.is_popular,
+                    'sort_order': plan.sort_order,
+                    'price_monthly': rate.price_monthly,
+                    'price_yearly': rate.price_yearly,
+                    'currency': rate.currency
+                })
+        
+        return result
+    except SQLAlchemyError as e:
+        _handle_db_error(db, operation, e)
+

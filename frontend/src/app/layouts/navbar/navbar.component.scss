@@ -56,6 +56,18 @@
     gap: 1.5rem;
   }
 
+  .navbar-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+
+    &:hover {
+      color: var(--primary);
+    }
+  }
+
   .user-info {
     display: flex;
     align-items: center;

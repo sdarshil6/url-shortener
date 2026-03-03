@@ -1,8 +1,63 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Float
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from database import Base
+
+
+class PricingPlan(Base):
+    """Base pricing plans with feature flags."""
+    __tablename__ = "pricing_plans"
+
+    id = Column(Integer, primary_key=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    display_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    
+    # Limits
+    links_limit = Column(Integer, default=0)
+    qr_codes_limit = Column(Integer, default=0)
+    custom_links_limit = Column(Integer, default=0)
+    
+    # Feature flags (boolean capabilities)
+    has_basic_analytics = Column(Boolean, default=True)
+    has_advanced_analytics = Column(Boolean, default=False)
+    has_detailed_geo = Column(Boolean, default=False)
+    has_device_tracking = Column(Boolean, default=False)
+    has_link_editing = Column(Boolean, default=False)
+    has_link_expiration = Column(Boolean, default=False)
+    has_custom_integrations = Column(Boolean, default=False)
+    has_sla_guarantee = Column(Boolean, default=False)
+    has_account_manager = Column(Boolean, default=False)
+    
+    # Support level: basic, priority, dedicated
+    support_level = Column(String, default="basic")
+    
+    is_popular = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    
+    country_rates = relationship("PricingCountryRate", back_populates="plan", cascade="all, delete-orphan")
+
+
+class PricingCountryRate(Base):
+    """Country-specific pricing for each plan."""
+    __tablename__ = "pricing_country_rates"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("pricing_plans.id"), nullable=False)
+    country_code = Column(String(2), nullable=False, index=True)
+    currency = Column(String(3), nullable=False)
+    price_monthly = Column(Float, default=0)
+    price_yearly = Column(Float, default=0)
+    
+    plan = relationship("PricingPlan", back_populates="country_rates")
+    
+    __table_args__ = (
+        # Ensure one rate per plan per country
+        {'sqlite_autoincrement': True},
+    )
 
 
 class User(Base):

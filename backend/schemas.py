@@ -144,3 +144,36 @@ class BulkUploadResponse(BaseModel):
     failed: int
     total: int
     errors: List[BulkURLErrorDetail] = []
+
+
+class PricingPlan(BaseModel):
+    id: int
+    slug: str
+    display_name: str
+    description: Optional[str] = None
+    features: List[str] = []
+    links_limit: int
+    qr_codes_limit: int
+    custom_links_limit: int
+    is_popular: bool = False
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class PricingCountryRate(BaseModel):
+    country_code: str
+    currency: str
+    price_monthly: float
+    price_yearly: float
+
+    class Config:
+        from_attributes = True
+
+
+class PricingPlanWithRate(PricingPlan):
+    """Plan with country-specific pricing."""
+    price_monthly: float
+    price_yearly: float
+    currency: str

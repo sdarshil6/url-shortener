@@ -1,0 +1,50 @@
+{
+  "/api": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/token": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/users": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/verify-otp": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/resend-otp": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/forgot-password": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/reset-password": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/auth": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/me": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/url": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/admin": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/payments": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  }
+}

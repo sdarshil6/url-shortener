@@ -1,12 +1,13 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { IconService } from '../../services/icon.service';
 
 @Component({
   selector: 'app-auth-layout',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './auth-layout.component.html',
   styleUrl: './auth-layout.component.scss'
 })

@@ -316,6 +316,16 @@
     font-size: 0.8125rem;
     color: var(--text-muted);
 
+    a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
     &.footer-tagline {
       font-size: 0.75rem;
       opacity: 0.8;
