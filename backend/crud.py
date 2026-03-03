@@ -528,3 +528,70 @@ def update_user_plan_from_webhook(db: Session, user: models.User, plan_name: str
         return user
     except SQLAlchemyError as e:
         _handle_db_error(db, operation, e)
+
+
+def create_bulk_urls(db: Session, urls: list[schemas.URLCreate], owner_id: int) -> tuple[int, int, list[dict]]:
+    """
+    Create multiple URLs in bulk.
+    Returns: (successful_count, failed_count, error_details)
+    Implements partial success - each URL is processed independently.
+    """
+    operation = "create_bulk_urls"
+    successful = 0
+    failed = 0
+    errors = []
+    
+    logger.info(f"Starting bulk URL creation", extra={'extra_data': {
+        'owner_id': owner_id,
+        'total_urls': len(urls)
+    }})
+    
+    for idx, url_data in enumerate(urls, start=1):
+        try:
+            # Validate target URL
+            if not url_data.target_url or not url_data.target_url.strip():
+                errors.append({
+                    "row": idx,
+                    "target_url": url_data.target_url or "",
+                    "error": "Target URL is required"
+                })
+                failed += 1
+                continue
+            
+            # Attempt to create the URL
+            db_url = create_db_url(db, url_data, owner_id)
+            
+            if db_url is None:
+                # Custom key already in use
+                errors.append({
+                    "row": idx,
+                    "target_url": url_data.target_url,
+                    "error": f"Custom key '{url_data.custom_key}' already in use"
+                })
+                failed += 1
+            else:
+                successful += 1
+                
+        except Exception as e:
+            # Log the error and add to error details
+            logger.warning(f"Failed to create URL in bulk", extra={'extra_data': {
+                'row': idx,
+                'target_url': url_data.target_url,
+                'error': str(e)
+            }})
+            errors.append({
+                "row": idx,
+                "target_url": url_data.target_url,
+                "error": str(e)
+            })
+            failed += 1
+    
+    logger.info(f"Bulk URL creation completed", extra={'extra_data': {
+        'owner_id': owner_id,
+        'successful': successful,
+        'failed': failed,
+        'total': len(urls)
+    }})
+    
+    return successful, failed, errors
+

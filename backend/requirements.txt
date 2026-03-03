@@ -35,4 +35,5 @@ user-agents
 fastapi-sso
 razorpay
 openpyxl
+pandas
 faker

@@ -13,4 +13,5 @@ export class FooterComponent {
   currentYear = new Date().getFullYear();
   appName = environment.appName;
   contactEmail = environment.contactEmail;
+  emailIconPath = 'assets/icons/email.svg';
 }

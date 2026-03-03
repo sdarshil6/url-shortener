@@ -18,7 +18,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, BackgroundTasks, UploadFile
 import validators
 from jose import JWTError, jwt
 from fastapi.responses import JSONResponse
@@ -527,6 +527,142 @@ def create_url(
             status_code=400, detail="Custom key already in use")
 
     return add_qr_code_to_url_info(db_url, request)
+
+
+@app.post("/api/v1/me/urls/bulk", response_model=schemas.BulkUploadResponse)
+async def bulk_upload_urls(
+    file: UploadFile,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk upload URLs from CSV, XLS, or XLSX file.
+    Expected columns: target_url (required), custom_key (optional), expires_at (optional)
+    Max file size: 10 MB
+    """
+    from io import BytesIO
+    import pandas as pd
+    from fastapi import UploadFile
+    
+    # Validate file extension
+    allowed_extensions = ['.csv', '.xlsx', '.xls']
+    file_extension = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_extensions)}"
+        )
+    
+    # Read file content
+    try:
+        content = await file.read()
+        
+        # Validate file size (10 MB)
+        max_size = 10 * 1024 * 1024
+        if len(content) > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail="File size exceeds 10 MB limit"
+            )
+        
+        # Parse file based on extension
+        file_obj = BytesIO(content)
+        
+        if file_extension == '.csv':
+            df = pd.read_csv(file_obj)
+        else:  # .xlsx or .xls
+            df = pd.read_excel(file_obj)
+        
+        # Validate required columns
+        if 'target_url' not in df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail="Missing required column: 'target_url'"
+            )
+        
+        # Process rows and create URL objects
+        urls_to_create = []
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                target_url = str(row['target_url']).strip() if pd.notna(row['target_url']) else None
+                
+                # Skip empty rows
+                if not target_url:
+                    continue
+                
+                # Validate URL format
+                if not validators.url(target_url):
+                    errors.append({
+                        "row": idx + 2,  # +2 because: +1 for header, +1 for 1-based indexing
+                        "target_url": target_url,
+                        "error": "Invalid URL format"
+                    })
+                    continue
+                
+                custom_key = str(row['custom_key']).strip() if 'custom_key' in row and pd.notna(row['custom_key']) else None
+                
+                # Parse expires_at if present
+                expires_at = None
+                if 'expires_at' in row and pd.notna(row['expires_at']):
+                    try:
+                        # Handle both datetime and string formats
+                        if isinstance(row['expires_at'], str):
+                            expires_at = datetime.fromisoformat(row['expires_at'].replace('Z', '+00:00'))
+                        else:
+                            expires_at = pd.to_datetime(row['expires_at'])
+                            if expires_at.tzinfo is None:
+                                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    except Exception:
+                        errors.append({
+                            "row": idx + 2,
+                            "target_url": target_url,
+                            "error": "Invalid date format for expires_at. Use YYYY-MM-DD"
+                        })
+                        continue
+                
+                url_create = schemas.URLCreate(
+                    target_url=target_url,
+                    custom_key=custom_key,
+                    expires_at=expires_at
+                )
+                urls_to_create.append(url_create)
+                
+            except Exception as e:
+                errors.append({
+                    "row": idx + 2,
+                    "target_url": str(row.get('target_url', '')),
+                    "error": f"Row processing error: {str(e)}"
+                })
+        
+        if not urls_to_create and not errors:
+            raise HTTPException(
+                status_code=400,
+                detail="No valid URLs found in the file"
+            )
+        
+        # Create URLs in bulk
+        successful, failed, creation_errors = crud.create_bulk_urls(db, urls_to_create, current_user.id)
+        
+        # Combine validation errors and creation errors
+        all_errors = errors + creation_errors
+        
+        return schemas.BulkUploadResponse(
+            successful=successful,
+            failed=failed + len(errors),
+            total=successful + failed + len(errors),
+            errors=all_errors
+        )
+        
+    except pd.errors.EmptyDataError:
+        raise HTTPException(status_code=400, detail="File is empty")
+    except pd.errors.ParserError:
+        raise HTTPException(status_code=400, detail="Failed to parse file. Please check the file format")
+    except Exception as e:
+        logger.error(f"Bulk upload error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
 
 
 @app.get("/admin/{secret_key}", response_model=schemas.URLInfo)

@@ -4,7 +4,34 @@
   <main class="dashboard-main">
     <div class="dashboard-container">
       <div class="dashboard-sidebar">
-        <app-create-link></app-create-link>
+        <div class="sidebar-tabs" [class.is-single]="activeTab === 'single'" [class.is-bulk]="activeTab === 'bulk'">
+          <div class="tab-bg"></div>
+          <button 
+            class="tab-btn" 
+            [class.active]="activeTab === 'single'" 
+            (click)="switchTab('single')">
+            <span class="svg-icon" style="--url: url('assets/icons/link-logo.svg'); width: 16px; height: 16px;"></span>
+            Single Link
+          </button>
+          <button 
+            class="tab-btn" 
+            [class.active]="activeTab === 'bulk'" 
+            (click)="switchTab('bulk')">
+            <span class="svg-icon" style="--url: url('assets/icons/upload.svg'); width: 16px; height: 16px;"></span>
+            Bulk Upload
+          </button>
+        </div>
+        
+        <div class="sidebar-content-wrapper">
+          <div class="sidebar-slider" [class.show-bulk]="activeTab === 'bulk'">
+            <div class="slider-panel">
+              <app-create-link></app-create-link>
+            </div>
+            <div class="slider-panel">
+              <app-bulk-upload></app-bulk-upload>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="dashboard-content">

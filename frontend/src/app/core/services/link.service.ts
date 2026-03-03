@@ -1,10 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
-import { retry, delay, tap } from 'rxjs/operators';
+import { retry, delay, tap, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Link, CreateLinkRequest, UpdateLinkRequest, LinkAnalytics, PaginatedLinkResponse, LinkQueryParams } from '../models/link.model';
 import { API_RETRY } from '../../shared/constants/app.constants';
+
+export interface BulkUploadProgress {
+  type: 'progress' | 'success';
+  progress: number;
+  data?: any;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +18,7 @@ import { API_RETRY } from '../../shared/constants/app.constants';
 export class LinkService {
   private readonly API_URL = environment.apiUrl;
   private linkCreatedSubject = new Subject<void>();
+  private bulkUploadAbortController: AbortController | null = null;
 
   linkCreated$ = this.linkCreatedSubject.asObservable();
 
@@ -90,5 +97,77 @@ export class LinkService {
         delay: API_RETRY.baseDelay
       })
     );
+  }
+
+  uploadBulkLinks(file: File): Observable<BulkUploadProgress> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Create new AbortController for this upload
+    this.bulkUploadAbortController = new AbortController();
+
+    return new Observable<BulkUploadProgress>(observer => {
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (event: ProgressEvent) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          observer.next({ type: 'progress', progress });
+        }
+      });
+
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            observer.next({ type: 'success', progress: 100, data: response });
+            observer.complete();
+          } catch (e) {
+            observer.error(new Error('Failed to parse response'));
+          }
+        } else {
+          try {
+            const errorResponse = JSON.parse(xhr.responseText);
+            observer.error(errorResponse);
+          } catch (e) {
+            observer.error(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        observer.error(new Error('Network error occurred during upload'));
+      });
+
+      // Handle abort
+      xhr.addEventListener('abort', () => {
+        observer.error(new Error('Upload cancelled'));
+      });
+
+      // Setup abort signal
+      this.bulkUploadAbortController?.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+
+      // Open and send request
+      xhr.open('POST', `${this.API_URL}/me/urls/bulk`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      xhr.send(formData);
+    });
+  }
+
+  cancelBulkUpload(): void {
+    if (this.bulkUploadAbortController) {
+      this.bulkUploadAbortController.abort();
+      this.bulkUploadAbortController = null;
+    }
   }
 }

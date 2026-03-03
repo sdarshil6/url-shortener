@@ -2,7 +2,10 @@
   <div class="footer-container">
     <div class="footer-content">
       <p class="copyright">© {{ currentYear }} {{ appName }}. All rights reserved.</p>
-      <p class="email">{{ contactEmail }}</p>
+      <a [href]="'mailto:' + contactEmail" class="email-link">
+        <img [src]="emailIconPath" alt="Email" class="email-icon" />
+        <span>{{ contactEmail }}</span>
+      </a>
     </div>
   </div>
 </footer>

@@ -4,8 +4,6 @@
   border-radius: 16px;
   padding: 1.5rem;
   height: fit-content;
-  position: sticky;
-  top: 1.5rem;
   box-shadow: 0 0 0 1px var(--border-white-inset) inset;
 
   .form-title {
@@ -31,6 +29,10 @@
 
   .form-group {
     margin-bottom: 1rem;
+
+    app-input input {
+      padding: 0.625rem 0.875rem;
+    }
   }
 
   .error-message {

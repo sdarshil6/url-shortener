@@ -1,0 +1,15 @@
+<div class="progress-loader-container">
+  <div class="progress-bar-wrapper" [style.height]="height" [style.backgroundColor]="backgroundColor">
+    <div 
+      class="progress-bar-fill" 
+      [style.width.%]="progressPercentage"
+      [style.backgroundColor]="progressColor"
+      [style.transition]="'width ' + animationDuration + ' ease-in-out'"
+    >
+      <div class="progress-shimmer"></div>
+    </div>
+  </div>
+  <div class="progress-text" *ngIf="showPercentage">
+    <span class="percentage">{{ progressPercentage }}%</span>
+  </div>
+</div>

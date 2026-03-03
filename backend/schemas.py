@@ -125,3 +125,22 @@ class PasswordReset(BaseModel):
 
 class SubscriptionRequest(BaseModel):
     plan_id: str
+
+
+class BulkURLItem(BaseModel):
+    target_url: str
+    custom_key: str | None = None
+    expires_at: datetime | None = None
+
+
+class BulkURLErrorDetail(BaseModel):
+    row: int
+    target_url: str
+    error: str
+
+
+class BulkUploadResponse(BaseModel):
+    successful: int
+    failed: int
+    total: int
+    errors: List[BulkURLErrorDetail] = []

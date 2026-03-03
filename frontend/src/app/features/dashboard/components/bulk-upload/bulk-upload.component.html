@@ -1,0 +1,112 @@
+<div class="bulk-upload-container">
+  <div class="upload-header">
+    <h3 class="upload-title">Bulk Upload</h3>
+    <p class="upload-subtitle">Upload CSV, XLS, or XLSX files (Max 10 MB)</p>
+  </div>
+
+  <div 
+    class="upload-zone"
+    [class.dragging]="isDragging"
+    [class.has-file]="selectedFile"
+    [class.uploading]="isUploading"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    (click)="!isUploading && triggerFileInput()"
+  >
+    <input
+      type="file"
+      id="bulk-file-input"
+      class="file-input"
+      accept=".csv,.xlsx,.xls"
+      (change)="onFileSelected($event)"
+      [disabled]="isUploading"
+    />
+
+    <div class="upload-content" *ngIf="!selectedFile">
+      <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p class="upload-text">
+        <span class="upload-text-primary">Click to upload</span>
+        <span class="upload-text-secondary"> or drag and drop</span>
+      </p>
+      <p class="upload-hint">CSV, XLS, XLSX (max 10 MB)</p>
+    </div>
+
+    <div class="file-info" *ngIf="selectedFile && !isUploading">
+      <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      <div class="file-details">
+        <p class="file-name">{{ selectedFile.name }}</p>
+        <p class="file-size">{{ fileSize }}</p>
+      </div>
+      <button
+        class="remove-file-btn"
+        (click)="clearFile(); $event.stopPropagation()"
+        type="button"
+        aria-label="Remove file"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="uploading-state" *ngIf="isUploading">
+      <svg class="spinner-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="2" x2="12" y2="6"/>
+        <line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+        <line x1="2" y1="12" x2="6" y2="12"/>
+        <line x1="18" y1="12" x2="22" y2="12"/>
+        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+      </svg>
+      <p class="uploading-text">Uploading...</p>
+    </div>
+  </div>
+
+  <div class="progress-section" *ngIf="isUploading || uploadProgress > 0">
+    <app-progress-loader
+      [progress]="uploadProgress"
+      [showPercentage]="true"
+      [height]="'10px'"
+      [progressColor]="'#4f46e5'"
+    ></app-progress-loader>
+  </div>
+
+  <div class="upload-actions">
+    <app-button
+      *ngIf="!isUploading"
+      [label]="'Upload'"
+      [variant]="'primary'"
+      [disabled]="!selectedFile"
+      [customClass]="'full-width-btn'"
+      (onClick)="uploadFile()"
+    ></app-button>
+
+    <app-button
+      *ngIf="isUploading"
+      [label]="'Cancel Upload'"
+      [variant]="'danger'"
+      [customClass]="'full-width-btn'"
+      (onClick)="cancelUpload()"
+    ></app-button>
+  </div>
+
+  <div class="upload-info">
+    <p class="info-title">CSV/Excel Format:</p>
+    <ul class="info-list">
+      <li><strong>target_url</strong> (required) - The long URL to shorten</li>
+      <li><strong>custom_key</strong> (optional) - Custom short code</li>
+      <li><strong>expires_at</strong> (optional) - Expiry date (YYYY-MM-DD)</li>
+    </ul>
+  </div>
+</div>
